@@ -22,12 +22,28 @@
       type="image/x-icon"
       media="(prefers-color-scheme: light)"
     />
+    
     <link
       rel="icon"
       href="/logo_white.ico"
       type="image/x-icon"
       media="(prefers-color-scheme: dark)"
     />
+
+    <script>
+      (() => {
+        try {
+          const t = localStorage.getItem("themeName");
+          if (t === "light" || t === "classic") {
+            document.documentElement.setAttribute("data-theme", t);
+          } else if (matchMedia?.("(prefers-color-scheme: light)").matches) {
+            document.documentElement.setAttribute("data-theme", "light");
+          } else {
+            document.documentElement.setAttribute("data-theme", "classic");
+          }
+        } catch {}
+      })();
+      </script>
 
   </head>
   <body>

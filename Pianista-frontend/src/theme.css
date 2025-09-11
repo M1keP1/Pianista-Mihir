@@ -1,0 +1,119 @@
+/* Defaults to classic to prevent first-paint flash */
+:root {
+  --color-bg: #1f1f1f;
+  --color-text: #e5e5e5;
+  --color-text-secondary: #a0a0a0;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-accent: #ff0000;
+  --color-border-muted: color-mix(in srgb, #ff5f2e 40%, transparent);
+  --color-shadow: rgba(0,0,0,0.35); 
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji",
+               "Segoe UI Emoji", "Segoe UI Symbol";
+}
+/* Use Open Sans globally */
+html, body {
+  font-family: var(--font-sans);
+}
+
+/* Classic (Dark) — calm indigo accent */
+:root[data-theme="classic"] {
+  --color-bg: #0b0f14;                 /* deep blue-black */
+  --color-text: #e6eaf2;               /* high-contrast, soft white */
+  --color-text-secondary: #9aa4b2;     /* desaturated slate */
+  --color-surface: rgba(255, 255, 255, 0.06); /* chat bubbles / cards */
+  --color-accent: #4f46e5;             /* indigo-600 */
+  --color-border-muted: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-star: #e6eaf2;               /* if you still use stars */
+}
+
+/* Light — airy with same accent for brand consistency */
+:root[data-theme="light"] {
+  --color-bg: #eeece2;                 /* off-white with a hint of blue */
+  --color-text: #0b0f14;               /* near-black for crisp copy */
+  --color-text-secondary: #5b6472;     /* cool gray for meta text */
+  --color-surface: rgba(255, 255, 255, 0.92); /* subtle card glass */
+  --color-accent: #da7756 ;             /* same indigo accent */
+  --color-border-muted: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-star: #2d3748;
+}
+
+
+
+
+
+/* ========== Pill Button Base ========== */
+
+/* Base button: rectangular with rounded edges */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  font-family: monospace;
+  text-decoration: none;
+  user-select: none;
+  cursor: pointer;
+  border: 1px solid var(--color-border-muted);
+  box-shadow: 0 1.5px 8px 0 var(--color-shadow);
+  will-change: transform, background-color, border-color, color, box-shadow;
+  transition:
+    transform 110ms ease,
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 70%, transparent);
+  outline-offset: 2px;
+}
+.btn.is-disabled, .btn[disabled] { opacity: .65; pointer-events: none; }
+
+/* Sizes */
+.btn--sm { padding: .5rem 1rem; font-size: .9rem; }
+.btn--md { padding: .65rem 1.4rem; font-size: .95rem; }
+.btn--lg { padding: .8rem 1.8rem; font-size: 1rem; }
+.is-full { width: 100%; }
+
+/* Variants */
+.btn--primary {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border-muted));
+}
+.btn--primary:hover {
+  background: color-mix(in srgb, var(--color-accent) 90%, white 10%);
+  box-shadow: 0 3px 14px 0 color-mix(in srgb, var(--color-accent) 28%, var(--color-shadow));
+  transform: translateZ(0) scale(1.012);
+}
+.btn--primary:active { transform: scale(0.97); }
+
+.btn--surface {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.btn--surface:hover {
+  background: color-mix(in srgb, var(--color-surface) 85%, var(--color-accent) 15%);
+  transform: translateZ(0) scale(1.008);
+}
+.btn--surface:active { transform: scale(0.97); }
+
+.btn--outline {
+  background: transparent;
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border-muted));
+}
+.btn--outline:hover {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  transform: translateZ(0) scale(1.008);
+}
+.btn--outline:active { transform: scale(0.97); }
+
+/* Inner */
+.btn__inner { display: inline-flex; align-items: center; gap: .5rem; }
+.btn__icon { display: inline-flex; }
+.btn__icon--left  { margin-inline-start: -0.1rem; }
+.btn__icon--right { margin-inline-end: -0.1rem; }
