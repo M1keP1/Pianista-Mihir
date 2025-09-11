@@ -1,13 +1,14 @@
-function App() {
+// App.tsx
+import { ThemeProvider } from "./themeContext";
+import Backdrop from "./BackDrop";              
+import ThemeSwitcherFab from "./components/themeSwitcher";
+import "./theme.css";                           
 
-
+export default function App() {
   return (
-    <>
-      <div>
-        
-      </div>
-    </>
-  )
+    <ThemeProvider>
+      <Backdrop />
+      <ThemeSwitcherFab />
+    </ThemeProvider>
+  );
 }
-
-export default App
