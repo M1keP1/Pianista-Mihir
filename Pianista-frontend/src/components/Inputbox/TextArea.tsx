@@ -1,3 +1,4 @@
+// src/components/Inputbox/TextArea.tsx
 import React, {
   useEffect,
   useMemo,
@@ -6,6 +7,9 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import useSubmitShortcut, {
+  type SubmitShortcut,
+} from "@/components/Inputbox/hooks/useSubmitShortcut";
 
 type CssSize = number | string;
 
@@ -13,14 +17,11 @@ export type TextareaHandle = {
   focus: () => void;
   blur: () => void;
   select: () => void;
-  /** Direct DOM node if you need it */
   textarea: HTMLTextAreaElement | null;
 };
 
 export type TextareaProps = {
-  /** Controlled value */
   value: string;
-  /** Change handler */
   onChange: (v: string) => void;
 
   placeholder?: string;
@@ -28,45 +29,30 @@ export type TextareaProps = {
   name?: string;
   id?: string;
 
-  /** Visual minimum rows (auto-resize grows from here). Default: 3 */
-  minRows?: number;
-  /** Max visible rows before scroll appears. Default: 5 */
-  maxRows?: number;
+  minRows?: number;    // default 3
+  maxRows?: number;    // default 5
 
-  /** If set, uses a fixed height and disables auto-resize (px, %, rem, etc.) */
-  height?: CssSize;
-
-  /** Width control (px, %, vw, etc.). Default: "100%" */
-  width?: CssSize;
-  /** Optional max-width constraint (e.g., 900, "900px", "92vw") */
+  height?: CssSize;    // fixed height disables auto-resize
+  width?: CssSize;     // default "100%"
   maxWidth?: CssSize;
+  autoResize?: boolean; // default true (ignored if height is set)
 
-  /** Enable auto-resize. Ignored if `height` is provided. Default: true */
-  autoResize?: boolean;
+  /** Called when the user "sends". If provided, Enter→send is enabled by default. */
+  onSubmit?: () => void;
+  /** Configure the shortcut; default: 'enter'. */
+  submitShortcut?: SubmitShortcut;
 
-  /** Optional keydown handler (called after internal handling) */
   onKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
 
-  /** Disabled / readOnly / spellCheck passthroughs */
   disabled?: boolean;
   readOnly?: boolean;
   spellCheck?: boolean;
 
-  /** Extra inline styles to merge in (keeps inline-only styling) */
   style?: React.CSSProperties;
 };
 
-/** Convert numeric sizes to px, pass strings as-is */
-const toCss = (v?: CssSize) =>
-  typeof v === "number" ? `${v}px` : v;
+const toCss = (v?: CssSize) => (typeof v === "number" ? `${v}px` : v);
 
-/**
- * Theme-aware, auto-resizing textarea:
- * - Uses --color-* tokens from theme.css and the global font (--font-sans)
- * - Grows downward until `maxRows`, then scrolls
- * - No scrollbar-gutter (avoids caret shift when overflow appears)
- * - Inline styles only (placeholder/scrollbar colors come from theme.css)
- */
 const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
   {
     value,
@@ -81,6 +67,8 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     width = "100%",
     maxWidth,
     autoResize = true,
+    onSubmit,
+    submitShortcut = "enter",
     onKeyDown,
     disabled,
     readOnly,
@@ -94,7 +82,6 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
   const [hasOverflow, setHasOverflow] = useState(false);
   const shouldAutoResize = autoResize && height == null;
 
-  // Expose imperative API
   useImperativeHandle(
     ref,
     () => ({
@@ -106,7 +93,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     []
   );
 
-  // Measure & resize height to content (clamped to min/max rows)
+  // Auto-resize (downwards only, clamped to maxRows)
   const measureAndResize = () => {
     const el = elRef.current;
     if (!el || !shouldAutoResize) return;
@@ -125,7 +112,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     const maxH = bTop + bBottom + padTop + padBottom + linePx * maxRows;
 
     el.style.height = "auto";
-    const natural = el.scrollHeight; // includes padding
+    const natural = el.scrollHeight;
 
     const target = Math.max(minH, Math.min(natural, maxH));
     el.style.height = `${target}px`;
@@ -133,14 +120,11 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     setHasOverflow(natural > maxH);
   };
 
-  // Initial + responsive resize
   useEffect(() => {
     measureAndResize();
     if (!shouldAutoResize) return;
 
-    // Observe content-box size changes (e.g., width changes)
     const ro = new ResizeObserver(() => {
-      // schedule on next frame to avoid layout thrash
       requestAnimationFrame(measureAndResize);
     });
     if (elRef.current) ro.observe(elRef.current);
@@ -155,7 +139,6 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldAutoResize]);
 
-  // Re-measure when content or row caps change
   useEffect(() => {
     if (shouldAutoResize) measureAndResize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,9 +149,9 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       boxSizing: "border-box",
       width: toCss(width) ?? "100%",
       maxWidth: toCss(maxWidth),
-      height: toCss(height), // when set, auto-resize is bypassed
+      height: toCss(height),
       padding: ".65rem .8rem",
-      fontFamily: "var(--font-sans)",   // global font
+      fontFamily: "var(--font-sans)",
       fontSize: ".95rem",
       lineHeight: 1.4,
       color: "var(--color-text)",
@@ -198,10 +181,24 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       }
     : {};
 
+  // 🔑 Default Enter→send behavior (Shift+Enter = newline)
+  const internalKeyDown =
+    onSubmit &&
+    useSubmitShortcut(() => {
+      if (!disabled) onSubmit();
+    }, { shortcut: submitShortcut, disabled });
+
+  const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
+    // Run default shortcut first (if onSubmit provided)
+    internalKeyDown && internalKeyDown(e);
+    // Then let callers do extra handling
+    onKeyDown && onKeyDown(e);
+  };
+
   return (
     <textarea
       ref={elRef}
-      data-p-textarea=""                         // hook for placeholder/scrollbar CSS in theme.css
+      data-p-textarea=""
       id={id}
       name={name}
       aria-label={ariaLabel ?? placeholder ?? "textarea"}
@@ -213,8 +210,8 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       onChange={(e) => onChange(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      onKeyDown={onKeyDown}
-      rows={minRows}                            // visual fallback; height is managed by JS unless `height` is set
+      onKeyDown={handleKeyDown}
+      rows={minRows}
       style={{ ...baseStyle, ...focusStyle, ...style }}
     />
   );

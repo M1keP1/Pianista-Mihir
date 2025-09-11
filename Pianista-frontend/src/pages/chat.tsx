@@ -2,21 +2,36 @@
 import React, { useState } from "react";
 import { useTheme } from "../themeContext";
 import BrandLogo from "@/components/VS_BrandButton";
+import Textarea from "@/components/Inputbox/TextArea";
+
 
 // Reuse the Pianista logos you already use on Home
 import logoLightBg from "../assets/pianista_logo_black.png";
 import logoDarkBg  from "../assets/pianista_logo_white.png";
-import Textarea from "@/components/Inputbox/TextArea";
+import SendButton from "@/components/Inputbox/Controls/SendButton";
 
 const ChatPage: React.FC = () => {
   const { name } = useTheme();
   const pianistaLogo = name === "light" ? logoLightBg : logoDarkBg;
 
-  // Shift amount after centering (tweak as you like)
   const SHIFT_UP = "-10vh";
-
-  // Input state + handlers
   const [text, setText] = useState("");
+
+  const submit = () => {
+    const payload = text.trim();
+    if (!payload) return;
+    // TODO: wire to your chat/send pipeline
+    console.log("[/chat] SEND:", payload);
+    setText("");
+  };
+
+  const onKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  };
 
   return (
     <main
@@ -26,7 +41,7 @@ const ChatPage: React.FC = () => {
         position: "absolute",
         inset: 0,
         display: "grid",
-        placeItems: "center",  // center first…
+        placeItems: "center",
         textAlign: "center",
         zIndex: 5,
         padding: "1rem",
@@ -42,7 +57,7 @@ const ChatPage: React.FC = () => {
           justifyItems: "center",
           gap: "1rem",
           width: "min(900px, 92vw)",
-          transform: `translateY(${SHIFT_UP})`, // …then shift up
+          transform: `translateY(${SHIFT_UP})`,
         }}
       >
         {/* Smaller Pianista logo */}
@@ -57,16 +72,37 @@ const ChatPage: React.FC = () => {
             filter: "drop-shadow(0 3px 10px var(--color-shadow))",
           }}
         />
+
+        {/* Textarea */}
         <Textarea
-        value={text}
-        onChange={setText}
-        placeholder="Type here…"
-        minRows={3}
-        maxRows={5}
-        width="42vw"
-        maxWidth={900}
+          value={text}
+          onChange={setText}
+          onKeyDown={onKeyDown}
+          onSubmit={submit}
+          placeholder="Type here… (⌘/Ctrl + Enter)"
+          minRows={3}
+          maxRows={5}
+          width="42vw"
+          maxWidth={900}
         />
 
+        {/* Controls BELOW the textarea */}
+        <div
+          style={{
+            width: "42vw",
+            maxWidth: 900,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
+          <SendButton
+            onClick={submit}
+            disabled={!text.trim()}
+            size="md"
+          />
+        </div>
       </div>
     </main>
   );
