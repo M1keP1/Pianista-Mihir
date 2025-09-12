@@ -4,6 +4,7 @@ import ThemeSwitcherFab from "./components/themeSwitcher";
 import Backdrop from "./BackDrop";
 import PianistaFooter from "./components/footer";
 import ChatPage from "./pages/chat";
+import PddlEditPage from "./pages/pddl-edit";
 
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/" element={<Navigate replace to="/home" />} />
       <Route path="/home" element={<Home />} />
       <Route path="/chat" element={<ChatPage />} />
+      <Route path="/pddl-edit" element={<PddlEditPage/>} /> 
     </Routes>
     <ThemeSwitcherFab/>
     <PianistaFooter/>

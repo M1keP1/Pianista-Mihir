@@ -11,6 +11,12 @@ import useSubmitShortcut, {
   type SubmitShortcut,
 } from "@/components/Inputbox/hooks/useSubmitShortcut";
 
+// Separate icon components (no inline SVG)
+import Check from "@/components/icons/Check";
+import Cross from "@/components/icons/Cross";
+import Spinner from "@/components/icons/Spinner";
+import Brain from "@/components/icons/Brain";
+
 type CssSize = number | string;
 
 export type TextareaHandle = {
@@ -19,6 +25,15 @@ export type TextareaHandle = {
   select: () => void;
   textarea: HTMLTextAreaElement | null;
 };
+
+export type TextAreaStatus =
+  | "idle"
+  | "verification"
+  | "verified"
+  | "error"
+  | "ai-thinking";
+
+export type GlowState = "verification" | "verified" | "error" | "ai-thinking";
 
 export type TextareaProps = {
   value: string;
@@ -29,13 +44,13 @@ export type TextareaProps = {
   name?: string;
   id?: string;
 
-  minRows?: number;    // default 3
-  maxRows?: number;    // default 5
+  minRows?: number;       // default 3
+  maxRows?: number;       // default 5
 
-  height?: CssSize;    // fixed height disables auto-resize
-  width?: CssSize;     // default "100%"
+  height?: CssSize;       // fixed height disables auto-resize
+  width?: CssSize;        // default "100%" (applied on wrapper)
   maxWidth?: CssSize;
-  autoResize?: boolean; // default true (ignored if height is set)
+  autoResize?: boolean;   // default true (ignored if height is set)
 
   /** Called when the user "sends". If provided, Enter→send is enabled by default. */
   onSubmit?: () => void;
@@ -49,6 +64,22 @@ export type TextareaProps = {
   spellCheck?: boolean;
 
   style?: React.CSSProperties;
+
+  /** Manual override for glow; if omitted, glow follows `status` automatically. */
+  glowState?: GlowState;
+
+  /** Optional status pill (pure CSS look with theme.css). */
+  status?: TextAreaStatus;                           // default "idle"
+  showStatusPill?: boolean;                          // default false
+  statusPillPlacement?: "top-right" | "top-left";    // default "top-right"
+
+  /** Optional icon overrides; if omitted, sensible defaults are used. */
+  statusIcons?: {
+    verification?: React.ReactNode;  // e.g. <Spinner className="status-icon spin" />
+    verified?: React.ReactNode;      // e.g. <Check className="status-icon" />
+    error?: React.ReactNode;         // e.g. <Cross className="status-icon" />
+    aiThinking?: React.ReactNode;    // e.g. <Brain className="status-icon" />
+  };
 };
 
 const toCss = (v?: CssSize) => (typeof v === "number" ? `${v}px` : v);
@@ -74,6 +105,13 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     readOnly,
     spellCheck = true,
     style,
+
+    // visual props
+    glowState,                         // manual override
+    status = "idle",
+    showStatusPill = false,
+    statusPillPlacement = "top-right",
+    statusIcons,
   },
   ref
 ) {
@@ -144,11 +182,11 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, minRows, maxRows, shouldAutoResize]);
 
+  // Base textarea styles (width 100%; wrapper controls width/maxWidth)
   const baseStyle: React.CSSProperties = useMemo(
     () => ({
       boxSizing: "border-box",
-      width: toCss(width) ?? "100%",
-      maxWidth: toCss(maxWidth),
+      width: "100%",
       height: toCss(height),
       padding: ".65rem .8rem",
       fontFamily: "var(--font-sans)",
@@ -168,7 +206,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       overflowWrap: "break-word",
       wordBreak: "break-word",
     }),
-    [width, maxWidth, height, hasOverflow]
+    [height, hasOverflow]
   );
 
   const focusStyle: React.CSSProperties = focused
@@ -189,31 +227,67 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     }, { shortcut: submitShortcut, disabled });
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
-    // Run default shortcut first (if onSubmit provided)
     internalKeyDown && internalKeyDown(e);
-    // Then let callers do extra handling
     onKeyDown && onKeyDown(e);
   };
 
+  // Auto-select icon (overridable via statusIcons)
+  const iconNode =
+    status === "verification"
+      ? (statusIcons?.verification ?? <span className="status-icon spin"><Spinner /></span>)
+      : status === "verified"
+      ? (statusIcons?.verified ?? <span className="status-icon"><Check /></span>)
+      : status === "error"
+      ? (statusIcons?.error ?? <span className="status-icon"><Cross /></span>)
+      : status === "ai-thinking"
+      ? (statusIcons?.aiThinking ?? <span className="status-icon"><Brain /></span>)
+      : null;
+
+  // Auto-map glow from status if not manually provided
+  const effectiveGlow: GlowState | undefined =
+    glowState ?? (status !== "idle" ? (status as GlowState) : undefined);
+
+  // CSS-only pill
+  const pill =
+    showStatusPill && status !== "idle" ? (
+      <div
+        className={`status-pill${statusPillPlacement === "top-left" ? " is-left" : ""}`}
+        data-state={status}
+        aria-hidden
+      >
+        {iconNode}
+      </div>
+    ) : null;
+
   return (
-    <textarea
-      ref={elRef}
-      data-p-textarea=""
-      id={id}
-      name={name}
-      aria-label={ariaLabel ?? placeholder ?? "textarea"}
-      placeholder={placeholder}
-      value={value}
-      disabled={disabled}
-      readOnly={readOnly}
-      spellCheck={spellCheck}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onKeyDown={handleKeyDown}
-      rows={minRows}
-      style={{ ...baseStyle, ...focusStyle, ...style }}
-    />
+    <div
+      style={{
+        position: "relative",
+        width: toCss(width) ?? "100%",
+        maxWidth: toCss(maxWidth),
+      }}
+    >
+      <textarea
+        ref={elRef}
+        data-p-textarea=""
+        id={id}
+        name={name}
+        aria-label={ariaLabel ?? placeholder ?? "textarea"}
+        placeholder={placeholder}
+        value={value}
+        disabled={disabled}
+        readOnly={readOnly}
+        spellCheck={spellCheck}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={handleKeyDown}
+        rows={minRows}
+        style={{ ...baseStyle, ...focusStyle, ...style }}
+        className={effectiveGlow ? `glow--${effectiveGlow}` : undefined}
+      />
+      {pill}
+    </div>
   );
 });
 

@@ -151,3 +151,67 @@ textarea[data-p-textarea]::-webkit-scrollbar-thumb {
 textarea[data-p-textarea]::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--color-accent) 70%, var(--color-border-muted));
 }
+/* ===== Textarea Glow States (theme-aware) ===== */
+@keyframes pulseGlow {
+  0%   { box-shadow: 0 0 6px 1px var(--glow-color, var(--color-accent)); }
+  50%  { box-shadow: 0 0 14px 3px var(--glow-color, var(--color-accent)); }
+  100% { box-shadow: 0 0 6px 1px var(--glow-color, var(--color-accent)); }
+}
+
+textarea[data-p-textarea].glow--verification {
+  --glow-color: color-mix(in srgb, var(--color-accent) 80%, #10b981);
+  border-color: var(--glow-color);
+  animation: pulseGlow 1.4s linear infinite;
+}
+
+textarea[data-p-textarea].glow--verified {
+  --glow-color: #22c55e; /* green */
+  border-color: var(--glow-color);
+  box-shadow: 0 0 10px 2px var(--glow-color);
+}
+
+textarea[data-p-textarea].glow--error {
+  --glow-color: #ef4444; /* red */
+  border-color: var(--glow-color);
+  box-shadow: 0 0 10px 2px var(--glow-color);
+}
+
+textarea[data-p-textarea].glow--ai-thinking {
+  --glow-color: #3b82f6; /* blue */
+  border-color: var(--glow-color);
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+
+/* ===== Status pill (pure CSS, theme-aware) ===== */
+.status-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-muted);
+  box-shadow: 0 1px 6px var(--color-shadow);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.status-pill.is-left { left: 8px; right: auto; }
+
+/* State colors (background + fg color) */
+.status-pill[data-state="verification"] { background: rgba(16,185,129,.12); color: var(--color-accent); }
+.status-pill[data-state="verified"]     { background: rgba(34,197,94,.12);  color: #22c55e; }
+.status-pill[data-state="error"]        { background: rgba(239,68,68,.12);  color: #ef4444; }
+.status-pill[data-state="ai-thinking"]  { background: rgba(59,130,246,.12); color: #3b82f6; }
+
+/* Icon sizing (for your external SVGs) */
+.status-icon { width: 16px; height: 16px; display: block; }
+
+/* Optional spinner animation (apply .spin class to the icon node) */
+@keyframes spin {
+  to { transform: rotate(1turn); }
+}
+.spin { animation: spin 1s linear infinite; }
+
