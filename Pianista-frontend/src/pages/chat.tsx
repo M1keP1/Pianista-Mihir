@@ -9,6 +9,8 @@ import Textarea from "@/components/Inputbox/TextArea";
 import logoLightBg from "../assets/pianista_logo_black.png";
 import logoDarkBg  from "../assets/pianista_logo_white.png";
 import SendButton from "@/components/Inputbox/Controls/SendButton";
+import useModeDetection from "@/components/Inputbox/hooks/useModeDetection";
+import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
 const ChatPage: React.FC = () => {
   const { name } = useTheme();
@@ -32,6 +34,12 @@ const ChatPage: React.FC = () => {
       submit();
     }
   };
+
+    const { mode, setManual } = useModeDetection(text, {
+    initial: "AI",
+    autoDetect: true,
+    manualPriorityMs: 1200,
+  });
 
   return (
     <main
@@ -86,22 +94,28 @@ const ChatPage: React.FC = () => {
           maxWidth={900}
         />
 
+
         {/* Controls BELOW the textarea */}
         <div
-          style={{
+        style={{
             width: "42vw",
             maxWidth: 900,
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
             gap: 8,
-          }}
+        }}
         >
-          <SendButton
-            onClick={submit}
-            disabled={!text.trim()}
-            size="md"
-          />
+            {/* Slider below the box */}
+            <ModeSlider value={mode} onChange={setManual} size="xs" />
+
+            {/* SendButton below the box */}
+            <SendButton
+                onClick={submit}
+                disabled={!text.trim()}
+                size="md"
+            />
+          
         </div>
       </div>
     </main>
