@@ -26,6 +26,7 @@ html, body {
   --color-border-muted: color-mix(in srgb, var(--color-accent) 28%, transparent);
   --color-shadow: rgba(0, 0, 0, 0.5);
   --color-star: #e6eaf2;               /* if you still use stars */
+  --color-surface-bridge: color-mix(in srgb, var(--color-bg) 85%, white 15%);
 }
 
 /* Light — airy with same accent for brand consistency */
@@ -38,6 +39,7 @@ html, body {
   --color-border-muted: color-mix(in srgb, var(--color-accent) 30%, transparent);
   --color-shadow: rgba(0, 0, 0, 0.08);
   --color-star: #2d3748;
+  --color-surface-bridge: color-mix(in srgb, var(--color-bg) 88%, black 12%);
 }
 
 
@@ -117,3 +119,35 @@ html, body {
 .btn__icon { display: inline-flex; }
 .btn__icon--left  { margin-inline-start: -0.1rem; }
 .btn__icon--right { margin-inline-end: -0.1rem; }
+
+/* Textarea placeholder + disabled state (theme-aware) */
+textarea[data-p-textarea]::placeholder { color: var(--color-text-secondary); opacity: .9; }
+textarea[data-p-textarea]:disabled { opacity: .65; cursor: not-allowed; }
+
+/* Textarea placeholder + disabled (already suggested) */
+textarea[data-p-textarea]::placeholder { color: var(--color-text-secondary); opacity: .9; }
+textarea[data-p-textarea]:disabled { opacity: .65; cursor: not-allowed; }
+
+/* Themed scrollbar — Firefox */
+textarea[data-p-textarea] {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border-muted)) transparent;
+}
+
+/* Themed scrollbar — WebKit (Chrome/Edge/Safari) */
+textarea[data-p-textarea]::-webkit-scrollbar {
+  width: 10px;
+}
+textarea[data-p-textarea]::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-bg) 60%, transparent);
+  border-radius: 10px;
+}
+textarea[data-p-textarea]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-border-muted));
+  border-radius: 10px;
+  border: 2px solid transparent;           /* creates a gap around thumb */
+  background-clip: padding-box;            /* so the border acts like padding */
+}
+textarea[data-p-textarea]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-accent) 70%, var(--color-border-muted));
+}

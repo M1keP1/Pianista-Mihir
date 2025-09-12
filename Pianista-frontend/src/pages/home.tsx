@@ -1,15 +1,12 @@
 // Home.tsx
 import React from "react";
 import { useTheme } from "../themeContext";
-import PillButton from "../components/PillButton"; // ← adjust path if your file lives elsewhere
+import PillButton from "../components/PillButton";
 
 // Swap to your actual asset paths
 import logoLightBg from "../assets/pianista_logo_black.png";
 import logoDarkBg  from "../assets/pianista_logo_white.png";
 import BrandLogo from "@/components/VS_BrandButton";
-
-// Optional: set your real URL here
-const LEARN_MORE_URL = "https://visionspace.com/our-services/product-pianista/";
 
 const Home: React.FC = () => {
   const { name } = useTheme();
@@ -46,7 +43,6 @@ const Home: React.FC = () => {
           loading="eager"
           decoding="async"
           style={{
-            // a bit bigger than before
             width: "clamp(260px, 52vw, 520px)",
             height: "auto",
             display: "block",
@@ -55,14 +51,28 @@ const Home: React.FC = () => {
           }}
         />
 
-        {/* Learn more pill button (external link) */}
+        <div
+        style={{
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+            justifyContent: "center",
+        }}
+        >
         <PillButton
-          label="Learn more"
-          href={LEARN_MORE_URL}
-          external
-          variant="primary"   
-          size="md"
+            label="Get Started"
+            to="/chat"
+            ariaLabel="Go to chat"
         />
+        <PillButton
+            label="?"
+            href="https://visionspace.com/our-services/product-pianista/"
+            external
+            ariaLabel="Learn more about Pianista"
+        />
+
+
+        </div>
       </div>
     </main>
   );
