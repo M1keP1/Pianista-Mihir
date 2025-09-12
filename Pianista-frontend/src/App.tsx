@@ -5,6 +5,7 @@ import Backdrop from "./BackDrop";
 import PianistaFooter from "./components/footer";
 import ChatPage from "./pages/chat";
 import PddlEditPage from "./pages/pddl-edit";
+import { Toaster } from "react-hot-toast";
 
 
 export default function App() {
@@ -19,7 +20,7 @@ export default function App() {
     </Routes>
     <ThemeSwitcherFab/>
     <PianistaFooter/>
-
+    <Toaster position="bottom-right" />
     </>
   );
 }

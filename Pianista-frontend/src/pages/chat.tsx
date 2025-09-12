@@ -1,32 +1,58 @@
 // src/pages/chat.tsx
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import { useTheme } from "../themeContext";
 import BrandLogo from "@/components/VS_BrandButton";
 import Textarea from "@/components/Inputbox/TextArea";
 
-
-// Reuse the Pianista logos you already use on Home
+// Logos
 import logoLightBg from "../assets/pianista_logo_black.png";
-import logoDarkBg  from "../assets/pianista_logo_white.png";
+import logoDarkBg from "../assets/pianista_logo_white.png";
+
+// Controls
 import SendButton from "@/components/Inputbox/Controls/SendButton";
 import useModeDetection from "@/components/Inputbox/hooks/useModeDetection";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
+// Pipeline
+import { useMessagePipeline } from "@/hooks/useMessagePipeline";
+
+// AI flow (real: NL→PDDL→Validate)
+import { flowChatAI } from "@/flows/flow.chat.ai";
+
 const ChatPage: React.FC = () => {
+  /* -------------------------- Theming / branding -------------------------- */
   const { name } = useTheme();
   const pianistaLogo = name === "light" ? logoLightBg : logoDarkBg;
-
   const SHIFT_UP = "-10vh";
-  const [text, setText] = useState("");
 
+  /* ----------------------- Pipeline state for textarea -------------------- */
+  // Pass an initial flow. We'll still gate execution by mode below.
+  const { status, output, setOutput, run } = useMessagePipeline(flowChatAI);
+
+  /* ----------------------------- Mode handling ---------------------------- */
+  // Detect current mode (AI, Domain, Domain+Problem, Mermaid)
+  const { mode, setManual } = useModeDetection(output, {
+    initial: "AI",
+    autoDetect: true,
+    manualPriorityMs: 1200,
+  });
+
+  // Optionally keep this for future when multiple flows are active
+  const isSending = status === "ai-thinking" || status === "verification";
+
+  /* ------------------------------- Submission ----------------------------- */
   const submit = () => {
-    const payload = text.trim();
+    const payload = output.trim();
     if (!payload) return;
-    // TODO: wire to your chat/send pipeline
-    console.log("[/chat] SEND:", payload);
-    setText("");
+
+    // For now, only AI mode triggers the real flow; others are blank/no-op
+    if (mode !== "AI") return;
+
+    // NOTE: useMessagePipeline.run accepts only the text argument (one arg).
+    run(payload);
   };
 
+  // Cmd/Ctrl + Enter sends; Shift+Enter = newline is handled by Textarea internally
   const onKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key === "Enter") {
@@ -35,12 +61,7 @@ const ChatPage: React.FC = () => {
     }
   };
 
-    const { mode, setManual } = useModeDetection(text, {
-    initial: "AI",
-    autoDetect: true,
-    manualPriorityMs: 1200,
-  });
-
+  /* --------------------------------- UI ---------------------------------- */
   return (
     <main
       role="main"
@@ -55,10 +76,10 @@ const ChatPage: React.FC = () => {
         padding: "1rem",
       }}
     >
-      {/* Top-left VisionSpace branding */}
+      {/* VisionSpace brand button (top-left) */}
       <BrandLogo />
 
-      {/* Centered stack, then shifted upward */}
+      {/* Center stack (shifted upward) */}
       <div
         style={{
           display: "grid",
@@ -68,7 +89,7 @@ const ChatPage: React.FC = () => {
           transform: `translateY(${SHIFT_UP})`,
         }}
       >
-        {/* Smaller Pianista logo */}
+        {/* Pianista logo */}
         <img
           src={pianistaLogo}
           alt="Pianista logo"
@@ -81,10 +102,10 @@ const ChatPage: React.FC = () => {
           }}
         />
 
-        {/* Textarea */}
+        {/* Textarea controlled by the pipeline */}
         <Textarea
-          value={text}
-          onChange={setText}
+          value={output}
+          onChange={setOutput}
           onKeyDown={onKeyDown}
           onSubmit={submit}
           placeholder="Type here… (⌘/Ctrl + Enter)"
@@ -92,30 +113,27 @@ const ChatPage: React.FC = () => {
           maxRows={5}
           width="42vw"
           maxWidth={900}
+          showStatusPill
+          status={status} // ai-thinking / verification / verified / error
         />
 
-
-        {/* Controls BELOW the textarea */}
+        {/* Controls: mode switch + send */}
         <div
-        style={{
+          style={{
             width: "42vw",
             maxWidth: 900,
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
             gap: 8,
-        }}
+          }}
         >
-            {/* Slider below the box */}
-            <ModeSlider value={mode} onChange={setManual} size="xs" />
-
-            {/* SendButton below the box */}
-            <SendButton
-                onClick={submit}
-                disabled={!text.trim()}
-                size="md"
-            />
-          
+          <ModeSlider value={mode} onChange={setManual} size="xs" />
+          <SendButton
+            onClick={submit}
+            disabled={!output.trim() || isSending}
+            size="md"
+          />
         </div>
       </div>
     </main>
