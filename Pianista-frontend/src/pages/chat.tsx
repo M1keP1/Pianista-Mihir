@@ -10,7 +10,7 @@ import logoDarkBg from "../assets/pianista_logo_white.png";
 
 // Controls
 import SendButton from "@/components/Inputbox/Controls/SendButton";
-import useModeDetection from "@/components/Inputbox/hooks/useModeDetection";
+import useModeDetection from "@/hooks/useModeDetection";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
 // Carry to editor (for P+D / Domain branches)

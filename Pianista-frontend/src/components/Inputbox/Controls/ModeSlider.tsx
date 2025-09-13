@@ -1,47 +1,58 @@
+// src/components/Inputbox/Controls/ModeSlider.tsx
 import React, { useMemo } from "react";
 
+/** Legacy union (kept for back-compat default) */
 export type ProcessingMode = "AI" | "Domain" | "Domain+Problem" | "Mermaid";
 
-export type ModeSliderProps = {
-  value: ProcessingMode;
-  onChange: (m: ProcessingMode) => void;
+export type ModeItem<T extends string = string> = {
+  key: T;
+  short?: string;
+  full?: string;
+};
 
-  /** Sizes align with your button heights; default: "xs" (tight) */
+export type ModeSliderProps<T extends string = ProcessingMode> = {
+  value: T;
+  onChange: (m: T) => void;
+  modes?: ModeItem<T>[];
   size?: "xs" | "sm" | "md" | "lg";
-
-  /** Fixed width per segment (px). If omitted, uses a sensible default per size. */
   segmentWidth?: number;
-
-  /** Optional short labels; full names are used for aria/tooltip. */
-  labels?: Partial<Record<ProcessingMode, string>>;
-
-  /** Extra inline overrides and a11y label */
+  labels?: Partial<Record<ProcessingMode, string>>; // legacy path only
   style?: React.CSSProperties;
   "aria-label"?: string;
 };
 
-const MODES: ProcessingMode[] = ["AI", "Domain", "Domain+Problem", "Mermaid"];
-const DEFAULT_LABELS: Record<ProcessingMode, string> = {
+const LEGACY: ProcessingMode[] = ["AI", "Domain", "Domain+Problem", "Mermaid"];
+const LEGACY_SHORT: Record<ProcessingMode, string> = {
   AI: "AI",
   Domain: "D",
   "Domain+Problem": "D+P",
   Mermaid: "MM",
 };
 
-export default function ModeSlider({
+export default function ModeSlider<T extends string = ProcessingMode>({
   value,
   onChange,
+  modes,
   size = "xs",
   segmentWidth,
   labels,
   style,
   "aria-label": ariaLabel = "Processing mode",
-}: ModeSliderProps) {
-  const count = MODES.length;
-  const idx = Math.max(0, MODES.indexOf(value));
-  const L = { ...DEFAULT_LABELS, ...(labels || {}) };
+}: ModeSliderProps<T>) {
+  const items = useMemo<ModeItem<T>[]>(() => {
+    if (modes && modes.length) return modes;
+    // legacy fallback (typed to ProcessingMode, then cast to T because default T=ProcessingMode)
+    const L = { ...LEGACY_SHORT, ...(labels || {}) };
+    return LEGACY.map((k) => ({
+      key: k,
+      short: L[k],
+      full: k === "Domain+Problem" ? "Domain + Problem" : k,
+    })) as unknown as ModeItem<T>[];
+  }, [modes, labels]);
 
-  // Tight dimensions + tiny pill insets to avoid touching separators
+  const count = items.length;
+  const idx = Math.max(0, items.findIndex((i) => i.key === value));
+
   const dims = useMemo(() => {
     switch (size) {
       case "xs": return { h: 28, r: 9,  fs: 10, pad: 3, gap: 8, seg: segmentWidth ?? 32, sepInset: 5, pillInsetX: 2.0, pillInsetY: 1.0 };
@@ -54,8 +65,8 @@ export default function ModeSlider({
 
   const wrap: React.CSSProperties = {
     position: "relative",
-    display: "inline-grid",                                   // fit-to-content width
-    gridTemplateColumns: `repeat(${count}, ${dims.seg}px)`,   // equal segment widths
+    display: "inline-grid",
+    gridTemplateColumns: `repeat(${count}, ${dims.seg}px)`,
     alignItems: "center",
     height: dims.h,
     borderRadius: dims.r,
@@ -68,10 +79,8 @@ export default function ModeSlider({
     ...style,
   };
 
-  // Highlight pill: inset horizontally & vertically for symmetry
   const pillLeft = dims.pad + idx * (dims.seg + dims.gap) + dims.pillInsetX;
   const pillWidth = Math.max(0, dims.seg - dims.pillInsetX * 2);
-
   const track: React.CSSProperties = {
     position: "absolute",
     zIndex: 0,
@@ -89,7 +98,7 @@ export default function ModeSlider({
 
   const btnBase: React.CSSProperties = {
     position: "relative",
-    zIndex: 2, // above track & separators
+    zIndex: 2,
     height: "100%",
     width: dims.seg,
     padding: 0,
@@ -105,32 +114,17 @@ export default function ModeSlider({
     transition: "color 100ms ease, transform 100ms ease",
     outline: "none",
   };
+  const selected: React.CSSProperties = { color: "var(--color-text)", transform: "translateZ(0) scale(1.02)" };
 
-  const selected: React.CSSProperties = {
-    color: "var(--color-text)",
-    transform: "translateZ(0) scale(1.02)",
-  };
-
-  // Short, straight vertical separators that don't touch edges
   const dividerColor = "color-mix(in srgb, var(--color-text-secondary) 45%, transparent)";
   const separators = Array.from({ length: count - 1 }, (_, k) => {
     const left = dims.pad + (k + 1) * dims.seg + k * dims.gap + dims.gap / 2;
     return (
-      <div
-        key={`sep-${k}`}
-        aria-hidden
-        style={{
-          position: "absolute",
-          zIndex: 1,                          // above track, below buttons
-          left: left - 0.5,                   // center the 1px line
-          top: dims.pad + dims.sepInset,
-          bottom: dims.pad + dims.sepInset,
-          width: 1,
-          background: dividerColor,
-          borderRadius: 1,
-          pointerEvents: "none",
-        }}
-      />
+      <div key={`sep-${k}`} aria-hidden style={{
+        position: "absolute", zIndex: 1, left: left - 0.5,
+        top: dims.pad + dims.sepInset, bottom: dims.pad + dims.sepInset,
+        width: 1, background: dividerColor, borderRadius: 1, pointerEvents: "none",
+      }}/>
     );
   });
 
@@ -142,28 +136,27 @@ export default function ModeSlider({
     else if (e.key === "End") next = count - 1;
     else return;
     e.preventDefault();
-    onChange(MODES[next]);
+    onChange(items[next].key);
   };
 
   return (
     <div role="radiogroup" aria-label={ariaLabel} style={wrap} onKeyDown={onKeyDown}>
       <div aria-hidden="true" style={track} />
       {separators}
-      {MODES.map((m) => {
-        const isSel = m === value;
-        const full = m === "Domain+Problem" ? "Domain + Problem" : m;
+      {items.map((it) => {
+        const isSel = it.key === value;
         return (
           <button
-            key={m}
+            key={it.key}
             role="radio"
             aria-checked={isSel}
             tabIndex={isSel ? 0 : -1}
-            title={full}
-            aria-label={full}
-            onClick={() => onChange(m)}
+            title={it.full}
+            aria-label={it.full}
+            onClick={() => onChange(it.key)}
             style={{ ...btnBase, ...(isSel ? selected : null) }}
           >
-            {(labels && labels[m]) ?? DEFAULT_LABELS[m]}
+            {it.short ?? it.key}
           </button>
         );
       })}

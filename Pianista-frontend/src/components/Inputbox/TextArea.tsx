@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import useSubmitShortcut, {
   type SubmitShortcut,
-} from "@/components/Inputbox/hooks/useSubmitShortcut";
+} from "@/hooks/useSubmitShortcut";
 
 // Separate icon components (no inline SVG)
 import Check from "@/components/icons/Check";
