@@ -1,13 +1,57 @@
 // src/components/Inputbox/Controls/TwoModeSlider.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 export type TwoMode = "AI" | "D" | "P";
 export type BoxKind = "domain" | "problem";
 
+/* ----------------------------- Robust detectors ---------------------------- */
+
+// Strip PDDL line comments: everything after ';' to end-of-line
+function stripLineComments(s: string) {
+  return s.replace(/;[^\n\r]*/g, "");
+}
+
+// Balanced parens check (after comment strip)
+function isBalanced(s: string) {
+  let bal = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "(") bal++;
+    else if (ch === ")") {
+      bal--;
+      if (bal < 0) return false;
+    }
+  }
+  return bal === 0;
+}
+
+// After the last *balanced* closing paren, is there any non-whitespace?
+function hasTextAfterFinalForm(s: string) {
+  const t = stripLineComments(s);
+  let bal = 0;
+  let lastComplete = -1;
+
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (ch === "(") bal++;
+    else if (ch === ")") {
+      bal = Math.max(0, bal - 1);
+      if (bal === 0) lastComplete = i; // end of a top-level form
+    }
+  }
+  if (lastComplete < 0) return false;
+  return /\S/.test(t.slice(lastComplete + 1));
+}
+
+const RE_DOMAIN = /\(\s*define\s*\(\s*domain\b/i;
+const RE_PROBLEM = /\(\s*define\s*\(\s*problem\b/i;
+
+/* --------------------------------- Slider ---------------------------------- */
+
 export default function TwoModeSlider({
-  kind,              // "domain" or "problem"
+  kind,              // "domain" | "problem"
   text,              // textarea value to auto-detect from
-  value,             // controlled value: "AI" | "D" or "AI" | "P"
+  value,             // controlled value: "AI" | "D" | "P"
   onChange,
   size = "xs",
   manualPriorityMs = 1200,
@@ -31,26 +75,35 @@ export default function TwoModeSlider({
     onChange(m);
   };
 
-  // ---- Auto-detection -------------------------------------------------------
-  const normalized = text.trimStart().toLowerCase();
-  const shouldDomain = normalized.startsWith("(define (domain");
-  const shouldProblem = normalized.startsWith("(define (problem");
-
+  /* ------------------------------- Auto-detect ------------------------------ */
   useEffect(() => {
     const since = Date.now() - lastManualAt;
-    if (since <= manualPriorityMs) return;
+    if (since <= manualPriorityMs) return; // honor manual selection window
+
+    const raw = text || "";
+    const trailingNL = hasTextAfterFinalForm(raw);
+    const clean = stripLineComments(raw).trimStart();
+
+    // If user typed anything after a complete PDDL form -> AI
+    if (trailingNL) {
+      if (value !== "AI") onChange("AI");
+      return;
+    }
+
+    // Only consider D/P when parens are balanced and header matches
+    const balanced = isBalanced(clean);
 
     if (kind === "domain") {
-      const desired: TwoMode = shouldDomain ? "D" : "AI";
+      const desired: TwoMode = balanced && RE_DOMAIN.test(clean) ? "D" : "AI";
       if (desired !== value) onChange(desired);
     } else {
-      const desired: TwoMode = shouldProblem ? "P" : "AI";
+      const desired: TwoMode = balanced && RE_PROBLEM.test(clean) ? "P" : "AI";
       if (desired !== value) onChange(desired);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [normalized, kind, shouldDomain, shouldProblem, manualPriorityMs]);
+  }, [text, kind, manualPriorityMs, lastManualAt]);
 
-  // ---- Visuals (tiny two-segment slider) -----------------------------------
+  /* -------------------------------- Visuals -------------------------------- */
   const dims = useMemo(() => {
     switch (size) {
       case "lg": return { h: 40, r: 12, fs: 13, pad: 6, seg: 48, gap: 8, insetX: 2, insetY: 1 };

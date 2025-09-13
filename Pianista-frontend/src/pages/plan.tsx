@@ -1,85 +1,151 @@
 // src/pages/plan.tsx
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+
 import BrandLogo from "@/components/VS_BrandButton";
 import PillButton from "@/components/PillButton";
 import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
+
 import { getPlan } from "@/api/pianista/getPlan";
+import { validatePlan } from "@/api/pianista/validatePlan";
+
+import { loadPlan, savePlanResult } from "@/lib/pddlStore";
+
+/* -----------------------------------------------------------------------------
+ * Plan Page
+ * - Displays the raw plan for a given job (?job=...)
+ * - Lets the user edit the plan text and validate it against stored domain/problem
+ * - If plan isn’t in the store yet, performs a single fetch attempt
+ * --------------------------------------------------------------------------- */
 
 const MESSAGE_MIN_H = 40;
-const RETRIES = 3;         // tiny safety net
-const RETRY_DELAY = 2000;  // 2s between quick retries
 
 export default function PlanPage() {
+  /* --------------------------------- Routing -------------------------------- */
   const [params] = useSearchParams();
   const job = params.get("job")?.trim() || "";
 
+  /* --------------------------------- State ---------------------------------- */
+  const [plan, setPlan] = useState<string>("");
   const [status, setStatus] = useState<TextAreaStatus>("idle");
-  const [msg, setMsg] = useState("");
-  const [plan, setPlan] = useState("");
+  const [msg, setMsg] = useState<string>("");
 
-  const tries = useRef(0);
+  /* ------------------------------ Abort control ----------------------------- */
   const abortRef = useRef<AbortController | null>(null);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function fetchOnce() {
+  /* ------------------------------- Fetch (once) ----------------------------- */
+  const fetchOnce = async () => {
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
 
     try {
-      const res = await getPlan(job, ctrl.signal);
-      const s = String(res.status).toLowerCase();
+      const res: any = await getPlan(job, ctrl.signal);
+      const statusText = String(res?.status ?? res?.result_status ?? "").toLowerCase();
 
-      if (s === "success" && res.plan?.trim()) {
-        setPlan(res.plan.trim());
-        setStatus("verified");
-        setMsg("Plan ready.");
+      if (statusText === "success") {
+        // plan may be in res.plan or res.result_plan
+        const text = (res?.plan ?? res?.result_plan ?? "").trim?.() ?? "";
+        if (text) {
+          setPlan(text);
+          setStatus("verified");
+          setMsg("Plan ready.");
+          savePlanResult(job, text);
+          return;
+        }
+        // success but no plan text
+        setStatus("error");
+        setMsg("Plan ready, but empty response.");
         return;
       }
-      if (s === "failure") {
+
+      if (statusText === "failure") {
         setStatus("error");
-        setMsg(res.message || "Planning failed.");
+        setMsg(res?.message || "Planning failed.");
         return;
       }
-      // Rare: backend returned 202/running even though we only navigate on success.
-      if (tries.current < RETRIES) {
-        tries.current += 1;
-        setStatus("ai-thinking");
-        setMsg(res.message || "Finalizing plan…");
-        retryTimer.current = setTimeout(fetchOnce, RETRY_DELAY);
-      } else {
-        setStatus("error");
-        setMsg("Plan not ready yet. Please retry.");
-      }
+
+      // queued / running / unknown state — no retries, just inform
+      setStatus("error");
+      setMsg("Plan is not ready yet. Please try again later.");
     } catch (e: any) {
-      if (tries.current < RETRIES) {
-        tries.current += 1;
-        setStatus("ai-thinking");
-        setMsg(e?.message || "Still working…");
-        retryTimer.current = setTimeout(fetchOnce, RETRY_DELAY);
-      } else {
-        setStatus("error");
-        setMsg(e?.message || "Network error. Please retry.");
-      }
+      setStatus("error");
+      setMsg(e?.message || "Network error. Please try again later.");
     }
-  }
+  };
 
+  /* ---------------------------------- Init ---------------------------------- */
   useEffect(() => {
     if (!job) {
       setStatus("error");
-      setMsg("Missing plan job id. Go back and generate a plan first.");
+      setMsg("Missing plan job id. Generate a plan from the editor first.");
       return;
     }
+
+    // Fast path: load from store if present
+    const rec = loadPlan(job);
+    if (rec?.plan?.trim()) {
+      setPlan(rec.plan.trim());
+      setStatus("verified");
+      setMsg("Plan ready.");
+      return;
+    }
+
+    // Otherwise, try a single fetch
     setStatus("ai-thinking");
     setMsg("Fetching plan…");
     fetchOnce();
 
     return () => {
       abortRef.current?.abort();
-      if (retryTimer.current) clearTimeout(retryTimer.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job]);
+
+  /* ---------------------------- Validate (manual) ---------------------------- */
+  const validateNow = async () => {
+    const current = plan.trim();
+    if (!current) {
+      setStatus("error");
+      setMsg("Plan is empty.");
+      return;
+    }
+
+    const rec = loadPlan(job);
+    const domain = rec?.domain?.trim() || "";
+    const problem = rec?.problem?.trim() || "";
+
+    if (!domain || !problem) {
+      setStatus("error");
+      setMsg("Missing domain/problem for validation.");
+      return;
+    }
+
+    setStatus("verification");
+    setMsg("Validating plan…");
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    try {
+      const res = await validatePlan(domain, problem, current, ctrl.signal);
+      if (res.result === "success") {
+        setStatus("verified");
+        setMsg(res.message || "Plan is valid.");
+        // Persist the edited plan text
+        savePlanResult(job, current);
+      } else {
+        setStatus("error");
+        setMsg(res.message || "Plan is NOT valid.");
+      }
+    } catch (e: any) {
+      setStatus("error");
+      setMsg(e?.message || "Validation failed.");
+    }
+  };
+
+  /* ---------------------------------- UI ------------------------------------ */
+  const backToEditor = job ? `/pddl-edit?job=${encodeURIComponent(job)}` : "/pddl-edit";
 
   return (
     <main
@@ -94,10 +160,13 @@ export default function PlanPage() {
         background: "var(--color-bg)",
         color: "var(--color-text)",
         padding: "1rem",
-        paddingBottom: "72px",
+        paddingBottom: "72px", // breathing room near footer
       }}
     >
+      {/* Brand (top-left) */}
       <BrandLogo />
+
+      {/* Back to Editor */}
       <div
         style={{
           position: "absolute",
@@ -106,9 +175,10 @@ export default function PlanPage() {
           zIndex: 9,
         }}
       >
-        <PillButton to="/pddl-edit" label="<- Back to Editor" />
+        <PillButton to={backToEditor} label="<- Back to Editor" />
       </div>
 
+      {/* Content */}
       <div style={{ display: "grid", gap: "1rem", width: "min(1160px, 92vw)" }}>
         <section
           style={{
@@ -119,6 +189,7 @@ export default function PlanPage() {
             boxShadow: "0 1.5px 10px var(--color-shadow)",
           }}
         >
+          {/* Header row */}
           <div
             style={{
               display: "flex",
@@ -130,23 +201,36 @@ export default function PlanPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span
                 aria-hidden
-                style={{ width: 10, height: 10, borderRadius: 999, background: "var(--color-accent)" }}
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: "var(--color-accent)",
+                }}
               />
               <strong>Plan (raw)</strong>
             </div>
+
+            {/* Validate button only when there is content */}
+            {plan.trim() && (
+              <PillButton onClick={validateNow} label="Validate Plan" ariaLabel="Validate current plan text" />
+            )}
           </div>
 
+          {/* Editable plan textarea */}
           <Textarea
             value={plan}
-            onChange={() => {}}
+            onChange={setPlan}
+            onSubmit={validateNow} // Cmd/Ctrl + Enter to validate
             placeholder="Waiting for plan…"
             height="55vh"
             autoResize={false}
             showStatusPill
-            status={status}
+            status={status} // 'idle' | 'verification' | 'verified' | 'ai-thinking' | 'error'
             statusPillPlacement="top-right"
           />
 
+          {/* Message (reserved height to avoid layout shift) */}
           <div
             style={{
               minHeight: MESSAGE_MIN_H,
@@ -164,12 +248,6 @@ export default function PlanPage() {
           >
             {msg || " "}
           </div>
-
-          {status === "error" && job && (
-            <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-              <PillButton onClick={() => { tries.current = 0; fetchOnce(); }} label="Retry" />
-            </div>
-          )}
         </section>
       </div>
     </main>

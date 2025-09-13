@@ -15,7 +15,7 @@ import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
 // Carry to editor (for P+D / Domain branches)
 import { useNavigate } from "react-router-dom";
-import { savePddl } from "@/lib/pddlStore";
+import { savePddl, saveChatFirstInput } from "@/lib/pddlStore";
 
 // Mermaid → PDDL
 import { convertMermaid } from "@/api/pianista/convertMermaid";
@@ -84,10 +84,34 @@ const ChatPage: React.FC = () => {
   const [mmStatus, setMmStatus] = React.useState<"idle" | "verification" | "error">("idle");
   const [aiStatus, setAiStatus] = React.useState<"idle" | "ai-thinking" | "error">("idle");
 
+  // Track saving the very first user input
+  const firstSavedRef = React.useRef(false);
+
+  // Save PDDL to store if present in a blob
+  const persistIfPddl = (text: string) => {
+    const kind = detectPddlKind(text);
+    if (kind === "AI") return;
+    const { domain, problem } = splitPddl(text);
+    if (domain || problem) {
+      savePddl({ domain, problem });
+    }
+  };
+
   /* ------------------------------- Submission ----------------------------- */
   const submit = async () => {
     const payload = output.trim();
     if (!payload) return;
+
+    // Save the *first* chat input + its type
+    if (!firstSavedRef.current) {
+      const inputType =
+        mode === "Mermaid" ? "mermaid" :
+        mode === "AI"      ? "nl"      :
+        mode === "Domain"  ? "domain"  :
+        mode === "Domain+Problem" ? "pddl" : "unknown";
+      saveChatFirstInput(payload, inputType);
+      firstSavedRef.current = true;
+    }
 
     if (mode === "Domain+Problem") {
       const { domain, problem } = splitPddl(payload);
@@ -116,6 +140,7 @@ const ChatPage: React.FC = () => {
         }
         const converted = res.conversion_result.trim();
         setOutput(converted);
+        persistIfPddl(converted); // store domain/problem if present
         setMmStatus("idle");
       } catch {
         setMmStatus("error");
@@ -140,6 +165,7 @@ const ChatPage: React.FC = () => {
         const combined = problem ? `${domain}\n\n${problem}` : domain;
 
         setOutput(combined);
+        persistIfPddl(combined); // store generated domain/problem
         setAiStatus("idle");
       } catch {
         setAiStatus("error");
