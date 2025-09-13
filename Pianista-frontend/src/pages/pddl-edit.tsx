@@ -9,8 +9,15 @@ import { validatePddl } from "@/api/pianista/validatePddl";           // (pddl, 
 import { validateMatchPddl } from "@/api/pianista/validateMatchPddl"; // (domain, problem, signal?)
 import { generateProblemFromNL } from "@/api/pianista/generateProblem";
 import { generateDomainFromNL } from "@/api/pianista/generateDomain";
+import { generatePlan } from "@/api/pianista/generatePlan";
+import { getPlan } from "@/api/pianista/getPlan";
 
-const MESSAGE_MIN_H = 40; // reserve space under each textarea to prevent layout shift
+// Icons (match StatusPill visuals)
+import Spinner from "@/components/icons/Spinner";
+import Brain from "@/components/icons/Brain";
+import Check from "@/components/icons/Check";
+
+const MESSAGE_MIN_H = 40;
 
 // Heuristic: if there's any non-whitespace text after the last ')', it's likely NL -> switch to AI
 function hasTextAfterLastParen(s: string) {
@@ -18,6 +25,8 @@ function hasTextAfterLastParen(s: string) {
   if (i < 0) return false;
   return /\S/.test(s.slice(i + 1));
 }
+
+type PlanPhase = "idle" | "submitting" | "polling" | "success" | "error";
 
 export default function PddlEditPage() {
   // Text values
@@ -34,11 +43,19 @@ export default function PddlEditPage() {
   const [domainMsg, setDomainMsg] = useState("");
   const [problemMsg, setProblemMsg] = useState("");
 
-  // Abort + stale guards
+  // Plan job state
+  const [planPhase, setPlanPhase] = useState<PlanPhase>("idle");
+  const [planId, setPlanId] = useState<string>("");
+  const [planErr, setPlanErr] = useState<string>("");
+
+  // timers/aborters
   const domainAbort = useRef<AbortController | null>(null);
   const domainReqId = useRef(0);
   const problemAbort = useRef<AbortController | null>(null);
   const problemReqId = useRef(0);
+
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollAbort = useRef<AbortController | null>(null);
 
   // Debounce (1.5s)
   const DEBOUNCE_MS = 1500;
@@ -216,6 +233,9 @@ export default function PddlEditPage() {
     return () => {
       domainAbort.current?.abort();
       problemAbort.current?.abort();
+      // clear polling if any
+      if (pollTimer.current) clearInterval(pollTimer.current);
+      pollAbort.current?.abort();
       if (domainDebounce.current) clearTimeout(domainDebounce.current);
       if (problemDebounce.current) clearTimeout(problemDebounce.current);
     };
@@ -243,7 +263,6 @@ export default function PddlEditPage() {
     setDomain(val);
     if (domainMode !== "AI" && hasTextAfterLastParen(val)) {
       setDomainMode("AI");
-      // In AI mode we don't auto-validate; user can press Enter to generate
     }
   };
   const onProblemChange = (val: string) => {
@@ -254,7 +273,6 @@ export default function PddlEditPage() {
   };
 
   /* ------------------ Debounced auto-validate on edits ------------------- */
-  // Domain: neutral (idle) when empty; debounce validate when in D mode (not AI)
   useEffect(() => {
     const empty = !domain.trim();
     if (empty) {
@@ -273,7 +291,6 @@ export default function PddlEditPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domain, domainMode]);
 
-  // Problem: neutral (idle) when empty; debounce validate when in P mode (not AI)
   useEffect(() => {
     const empty = !problem.trim();
     if (empty) {
@@ -291,6 +308,54 @@ export default function PddlEditPage() {
     return () => { if (problemDebounce.current) clearTimeout(problemDebounce.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem, domain, problemMode]);
+
+  /* -------------------- Plan: submit + polling handlers ------------------ */
+  const canGenerate = !!domain.trim() && !!problem.trim();
+  const pollEveryMs = 2500;
+
+  const startPolling = (id: string) => {
+    // cleanup previous
+    if (pollTimer.current) clearInterval(pollTimer.current);
+    pollAbort.current?.abort();
+
+    setPlanId(id);
+    setPlanPhase("polling");
+    setPlanErr("");
+
+    pollTimer.current = setInterval(async () => {
+      const ctrl = new AbortController();
+      pollAbort.current = ctrl;
+      try {
+        const res = await getPlan(id, ctrl.signal);
+        const status = String(res.status).toLowerCase();
+        if (status === "success") {
+          clearInterval(pollTimer.current!);
+          setPlanPhase("success");
+        } else if (status === "failure") {
+          clearInterval(pollTimer.current!);
+          setPlanPhase("error");
+          setPlanErr(res.message || "Planning failed.");
+        }
+        // else queued/running → keep polling (AI-thinking)
+      } catch (e: any) {
+        // transient errors: keep polling, but you could surface a toast if desired
+      }
+    }, pollEveryMs);
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!canGenerate || planPhase === "submitting" || planPhase === "polling") return;
+    setPlanPhase("submitting");
+    setPlanErr("");
+
+    try {
+      const { id } = await generatePlan(domain.trim(), problem.trim(), { convert_real_types: true });
+      startPolling(id);
+    } catch (e: any) {
+      setPlanPhase("error");
+      setPlanErr(e?.message || "Failed to start planning.");
+    }
+  };
 
   /* --------------------------------- UI ---------------------------------- */
   return (
@@ -310,6 +375,8 @@ export default function PddlEditPage() {
       }}
     >
       <BrandLogo />
+
+      {/* Back to Chat (bottom-left) */}
       <div
         style={{
           position: "absolute",
@@ -321,6 +388,46 @@ export default function PddlEditPage() {
         <PillButton to="/chat" label="<- Back to Chat" />
       </div>
 
+      {/* Generate Plan (bottom-right) */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "calc(1rem + 42px + 0.75rem)",
+          right: "1rem",
+          zIndex: 9,
+        }}
+      >
+        {planPhase === "success" ? (
+          <PillButton
+            to={`/plan?job=${encodeURIComponent(planId)}`}
+            label="See Plan"
+            rightIcon={<Check />} // tick (same icon set as StatusPill)
+            ariaLabel="See generated plan"
+          />
+        ) : (
+          <PillButton
+            onClick={handleGeneratePlan}
+            label={
+              planPhase === "submitting"
+                ? "Generating…"
+                : planPhase === "polling"
+                ? "Generating…"
+                : "Generate Plan"
+            }
+            rightIcon={
+              planPhase === "submitting" ? (
+                <Spinner /> // waiting for id
+              ) : planPhase === "polling" ? (
+                <Brain />   // ai-thinking while polling
+              ) : undefined
+            }
+            disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
+            ariaLabel="Generate plan from current PDDL"
+          />
+        )}
+      </div>
+
+      {/* Main grid */}
       <div style={{ display: "grid", gap: "1rem", width: "min(1160px, 92vw)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
           {/* Domain */}
