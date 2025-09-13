@@ -1,33 +1,225 @@
-const KEY = "pianista.pddl.single";
+// src/lib/pddlStore.ts
 
-export type PddlBlob = { domain: string; problem: string; updatedAt: string };
+/** ------------------------ Types ------------------------ */
+export type ChatInputType = "nl" | "mermaid" | "domain" | "pddl" | "unknown";
 
-export function loadPddl(): PddlBlob {
+export type PddlBundle = {
+  domain: string;
+  problem: string;
+  updatedAt: number;
+};
+
+export type PlanRecord = {
+  jobId: string;
+  domain: string;
+  problem: string;
+  plan?: string;
+  createdAt: number;
+  completedAt?: number;
+  // Optional provenance from chat
+  firstInput?: string;
+  firstInputType?: ChatInputType;
+};
+
+/** ------------------------ Keys ------------------------- */
+const LS_PDDL = "pddl_bundle";         // single latest editor snapshot
+const LS_CHAT = "chat_trace";          // { firstInput, firstInputType, ts }
+const LS_PLAN = "plan_records";        // { [jobId]: PlanRecord }
+const LS_LAST_PLAN_ID = "plan_last_id";
+
+/** --------------------- Helpers (LS) -------------------- */
+function readJSON<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { domain: "", problem: "", updatedAt: "" };
-    const j = JSON.parse(raw);
-    return {
-      domain: j?.domain ?? "",
-      problem: j?.problem ?? "",
-      updatedAt: j?.updatedAt ?? "",
-    };
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return { domain: "", problem: "", updatedAt: "" };
+    return fallback;
   }
 }
 
-export function savePddl(partial: Partial<PddlBlob>): PddlBlob {
-  const prev = loadPddl();
-  const next: PddlBlob = {
-    domain: partial.domain ?? prev.domain ?? "",
-    problem: partial.problem ?? prev.problem ?? "",
-    updatedAt: new Date().toISOString(),
+function writeJSON(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // ignore quota or private mode errors
+  }
+}
+
+/** ------------------ Chat first input ------------------- */
+
+/** Save the *very first* chat input and its type. Safe to call multiple times; last write wins. */
+export function saveChatFirstInput(text: string, type: ChatInputType) {
+  const t = text?.trim();
+  if (!t) return;
+  writeJSON(LS_CHAT, { firstInput: t, firstInputType: type, ts: Date.now() });
+}
+
+export function loadChatTrace():
+  | { firstInput?: string; firstInputType?: ChatInputType; ts?: number }
+  | null {
+  return readJSON(LS_CHAT, null as any);
+}
+
+export function clearChatTrace() {
+  try {
+    localStorage.removeItem(LS_CHAT);
+  } catch {}
+}
+
+/** ------------------- Editor PDDL pair ------------------ */
+
+export function savePddl(input: { domain?: string; problem?: string }) {
+  const current = readJSON<PddlBundle | null>(LS_PDDL, null);
+  const next: PddlBundle = {
+    domain: (input.domain ?? current?.domain ?? "").trim(),
+    problem: (input.problem ?? current?.problem ?? "").trim(),
+    updatedAt: Date.now(),
   };
-  localStorage.setItem(KEY, JSON.stringify(next));
-  return next;
+  writeJSON(LS_PDDL, next);
+}
+
+export function loadPddl(): PddlBundle | null {
+  const bundle = readJSON<PddlBundle | null>(LS_PDDL, null);
+  return bundle
+    ? {
+        domain: bundle.domain ?? "",
+        problem: bundle.problem ?? "",
+        updatedAt: bundle.updatedAt ?? 0,
+      }
+    : null;
 }
 
 export function clearPddl() {
-  localStorage.removeItem(KEY);
+  try {
+    localStorage.removeItem(LS_PDDL);
+  } catch {}
+}
+
+/** ---------------------- Plan jobs ---------------------- */
+
+/**
+ * Snapshot editor PDDL at the moment user clicks "Generate".
+ * (You can just call savePddl() too — this helper is semantic sugar.)
+ */
+export function savePddlSnapshot(domain: string, problem: string) {
+  savePddl({ domain, problem });
+}
+
+/** Persist that a plan job was enqueued. */
+export function savePlanJob(
+  jobId: string,
+  domain: string,
+  problem: string,
+  meta?: { firstInput?: string; firstInputType?: ChatInputType }
+) {
+  if (!jobId) return;
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+
+  const rec: PlanRecord = {
+    jobId,
+    domain: domain?.trim() ?? "",
+    problem: problem?.trim() ?? "",
+    plan: all[jobId]?.plan, // preserve if already present
+    createdAt: all[jobId]?.createdAt ?? Date.now(),
+    completedAt: all[jobId]?.completedAt,
+    firstInput: meta?.firstInput ?? all[jobId]?.firstInput,
+    firstInputType: meta?.firstInputType ?? all[jobId]?.firstInputType,
+  };
+
+  all[jobId] = rec;
+  writeJSON(LS_PLAN, all);
+  setLastPlanId(jobId);
+}
+
+/** Update the PDDL associated with a job (if you re-run or adjusted). */
+export function updatePlanJobPddl(jobId: string, domain: string, problem: string) {
+  if (!jobId) return;
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+  const existing = all[jobId] || {
+    jobId,
+    domain: "",
+    problem: "",
+    createdAt: Date.now(),
+  };
+  all[jobId] = {
+    ...existing,
+    domain: domain?.trim() ?? "",
+    problem: problem?.trim() ?? "",
+  };
+  writeJSON(LS_PLAN, all);
+}
+
+/** Persist the final plan text when it arrives. */
+export function savePlanResult(jobId: string, plan: string) {
+  if (!jobId) return;
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+  const existing = all[jobId] || {
+    jobId,
+    domain: readJSON<PddlBundle | null>(LS_PDDL, null)?.domain ?? "",
+    problem: readJSON<PddlBundle | null>(LS_PDDL, null)?.problem ?? "",
+    createdAt: Date.now(),
+  };
+  all[jobId] = {
+    ...existing,
+    plan: plan?.trim() ?? "",
+    completedAt: Date.now(),
+  };
+  writeJSON(LS_PLAN, all);
+  setLastPlanId(jobId);
+}
+
+/** Load a specific job record. */
+export function loadPlan(jobId: string): PlanRecord | null {
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+  return all[jobId] ?? null;
+}
+
+/** List all jobs (most recent first). */
+export function listPlans(): PlanRecord[] {
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+  return Object.values(all).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+/** Remember & fetch the "current" job id. */
+export function setLastPlanId(jobId: string) {
+  try {
+    localStorage.setItem(LS_LAST_PLAN_ID, jobId);
+  } catch {}
+}
+export function getLastPlanId(): string | null {
+  try {
+    return localStorage.getItem(LS_LAST_PLAN_ID);
+  } catch {
+    return null;
+  }
+}
+
+/** Convenience: load the last job record (if any). */
+export function loadLatestPlan(): PlanRecord | null {
+  const id = getLastPlanId();
+  return id ? loadPlan(id) : null;
+}
+
+/** Clear a single job or everything */
+export function clearPlan(jobId: string) {
+  const all = readJSON<Record<string, PlanRecord>>(LS_PLAN, {});
+  if (all[jobId]) {
+    delete all[jobId];
+    writeJSON(LS_PLAN, all);
+  }
+  const last = getLastPlanId();
+  if (last === jobId) {
+    try { localStorage.removeItem(LS_LAST_PLAN_ID); } catch {}
+  }
+}
+export function clearAllPlans() {
+  try {
+    localStorage.removeItem(LS_PLAN);
+    localStorage.removeItem(LS_LAST_PLAN_ID);
+  } catch {}
+}
+
+/** Build a back-link that encodes the job in the route. */
+export function jobBackLink(jobId?: string) {
+  return jobId ? `/pddl-edit?job=${encodeURIComponent(jobId)}` : "/pddl-edit";
 }
