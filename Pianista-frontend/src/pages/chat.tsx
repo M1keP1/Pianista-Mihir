@@ -1,5 +1,5 @@
 // src/pages/chat.tsx
-import React, { useMemo } from "react";
+import React from "react";
 import { useTheme } from "../themeContext";
 import BrandLogo from "@/components/VS_BrandButton";
 import Textarea from "@/components/Inputbox/TextArea";
@@ -13,11 +13,54 @@ import SendButton from "@/components/Inputbox/Controls/SendButton";
 import useModeDetection from "@/components/Inputbox/hooks/useModeDetection";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
-// Pipeline
-import { useMessagePipeline } from "@/hooks/useMessagePipeline";
+// Carry to editor (for P+D / Domain branches)
+import { useNavigate } from "react-router-dom";
+import { savePddl } from "@/lib/pddlStore";
 
-// AI flow (real: NL→PDDL→Validate)
-import { flowChatAI } from "@/flows/flow.chat.ai";
+// Mermaid → PDDL
+import { convertMermaid } from "@/api/pianista/convertMermaid";
+
+// NL → Domain(+Problem)
+import { generateDomainFromNL } from "@/api/pianista/generateDomain";
+
+/* ---------------- Helpers ---------------- */
+
+// Finds the next "(define (" occurrence after a given index
+function nextDefineIndex(text: string, from: number) {
+  const re = /\(define\s*\(/g;
+  re.lastIndex = Math.max(0, from);
+  const m = re.exec(text);
+  return m ? m.index : -1;
+}
+
+// Split a combined PDDL blob into domain/problem parts
+function splitPddl(text: string) {
+  const dIdx = text.indexOf("(define (domain");
+  const pIdx = text.indexOf("(define (problem");
+
+  // none found
+  if (dIdx < 0 && pIdx < 0) return { domain: "", problem: "" };
+
+  const cutAfter = (start: number) => {
+    if (start < 0) return -1;
+    const next = nextDefineIndex(text, start + 1);
+    return next === -1 ? text.length : next;
+  };
+
+  const domain = dIdx >= 0 ? text.slice(dIdx, cutAfter(dIdx)).trim() : "";
+  const problem = pIdx >= 0 ? text.slice(pIdx, cutAfter(pIdx)).trim() : "";
+  return { domain, problem };
+}
+
+// Detect which mode a PDDL blob corresponds to
+function detectPddlKind(text: string): "Domain+Problem" | "Domain" | "Problem" | "AI" {
+  const hasD = text.includes("(define (domain");
+  const hasP = text.includes("(define (problem");
+  if (hasD && hasP) return "Domain+Problem";
+  if (hasD) return "Domain";
+  if (hasP) return "Problem";
+  return "AI";
+}
 
 const ChatPage: React.FC = () => {
   /* -------------------------- Theming / branding -------------------------- */
@@ -25,34 +68,87 @@ const ChatPage: React.FC = () => {
   const pianistaLogo = name === "light" ? logoLightBg : logoDarkBg;
   const SHIFT_UP = "-10vh";
 
-  /* ----------------------- Pipeline state for textarea -------------------- */
-  // Pass an initial flow. We'll still gate execution by mode below.
-  const { status, output, setOutput, run } = useMessagePipeline(flowChatAI);
+  /* ----------------------- Local textarea state --------------------------- */
+  const [output, setOutput] = React.useState("");
 
   /* ----------------------------- Mode handling ---------------------------- */
-  // Detect current mode (AI, Domain, Domain+Problem, Mermaid)
   const { mode, setManual } = useModeDetection(output, {
     initial: "AI",
     autoDetect: true,
     manualPriorityMs: 1200,
   });
 
-  // Optionally keep this for future when multiple flows are active
-  const isSending = status === "ai-thinking" || status === "verification";
+  const navigate = useNavigate();
+
+  // Spinner/error state for conversions/generation
+  const [mmStatus, setMmStatus] = React.useState<"idle" | "verification" | "error">("idle");
+  const [aiStatus, setAiStatus] = React.useState<"idle" | "ai-thinking" | "error">("idle");
 
   /* ------------------------------- Submission ----------------------------- */
-  const submit = () => {
+  const submit = async () => {
     const payload = output.trim();
     if (!payload) return;
 
-    // For now, only AI mode triggers the real flow; others are blank/no-op
-    if (mode !== "AI") return;
+    if (mode === "Domain+Problem") {
+      const { domain, problem } = splitPddl(payload);
+      if (!domain && !problem) return;
+      savePddl({ domain, problem });
+      navigate("/pddl-edit");
+      return;
+    }
 
-    // NOTE: useMessagePipeline.run accepts only the text argument (one arg).
-    run(payload);
+    if (mode === "Domain") {
+      const { domain, problem } = splitPddl(payload);
+      if (!domain) return;
+      savePddl({ domain, problem });
+      navigate("/pddl-edit");
+      return;
+    }
+
+    if (mode === "Mermaid") {
+      // Convert Mermaid -> PDDL and repopulate the textbox
+      setMmStatus("verification");
+      try {
+        const res = await convertMermaid(payload, 1);
+        if (res.result_status !== "success" || !res.conversion_result) {
+          setMmStatus("error");
+          return;
+        }
+        const converted = res.conversion_result.trim();
+        setOutput(converted);
+        setMmStatus("idle");
+      } catch {
+        setMmStatus("error");
+      }
+      return;
+    }
+
+    if (mode === "AI") {
+      // Natural language → Domain (+ Problem) and repopulate
+      setAiStatus("ai-thinking");
+      try {
+        const res = await generateDomainFromNL(payload, {
+          attempts: 1,
+          generate_both: true, // ← important
+        });
+        if (res.result_status !== "success" || !res.generated_domain) {
+          setAiStatus("error");
+          return;
+        }
+        const domain = res.generated_domain?.trim() ?? "";
+        const problem = res.generated_problem?.trim() ?? "";
+        const combined = problem ? `${domain}\n\n${problem}` : domain;
+
+        setOutput(combined);
+        setAiStatus("idle");
+      } catch {
+        setAiStatus("error");
+      }
+      return;
+    }
   };
 
-  // Cmd/Ctrl + Enter sends; Shift+Enter = newline is handled by Textarea internally
+  // Cmd/Ctrl + Enter sends; Shift+Enter newline is handled by Textarea internally
   const onKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key === "Enter") {
@@ -102,19 +198,26 @@ const ChatPage: React.FC = () => {
           }}
         />
 
-        {/* Textarea controlled by the pipeline */}
+        {/* Textarea */}
         <Textarea
           value={output}
           onChange={setOutput}
           onKeyDown={onKeyDown}
           onSubmit={submit}
-          placeholder="Type here… (⌘/Ctrl + Enter)"
+          placeholder="Type natural language, Mermaid, or PDDL… (⌘/Ctrl + Enter)"
           minRows={3}
           maxRows={5}
           width="42vw"
           maxWidth={900}
           showStatusPill
-          status={status} // ai-thinking / verification / verified / error
+          // Show conversion/generation spinner when active
+          status={
+            mmStatus !== "idle"
+              ? mmStatus
+              : aiStatus !== "idle"
+              ? aiStatus
+              : "idle"
+          }
         />
 
         {/* Controls: mode switch + send */}
@@ -131,7 +234,11 @@ const ChatPage: React.FC = () => {
           <ModeSlider value={mode} onChange={setManual} size="xs" />
           <SendButton
             onClick={submit}
-            disabled={!output.trim() || isSending}
+            disabled={
+              !output.trim() ||
+              mmStatus === "verification" ||
+              aiStatus === "ai-thinking"
+            }
             size="md"
           />
         </div>
