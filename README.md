@@ -35,7 +35,7 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ## 🗺️ Architecture & User Flow Diagram
 
-![Architecture & Flow](/Pianista_Vision_v1.png)
+![Architecture & Flow](/Pianista-frontend/Pianista_Vision_V1.png)
 
 ---
 
