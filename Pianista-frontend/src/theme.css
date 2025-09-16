@@ -42,6 +42,26 @@ html, body {
   --color-surface-bridge: color-mix(in srgb, var(--color-bg) 88%, black 12%);
 }
 
+/* --- add near the top with other :root tokens --- */
+:root {
+  /* ...existing vars... */
+  --color-surface-bridge: color-mix(in srgb, var(--color-bg) 85%, white 15%);
+}
+
+/* --- Outline: default looks hovered; hover/active become more solid --- */
+.btn--outline.is-hover-default {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.btn--outline.is-hover-default:hover {
+  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  transform: translateZ(0) scale(1.008);
+}
+.btn--outline.is-hover-default:active {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border-muted));
+  transform: scale(0.97);
+}
 
 
 
@@ -93,6 +113,11 @@ html, body {
 }
 .btn--primary:active { transform: scale(0.97); }
 
+.btn--primary.is-disabled, 
+.btn--primary[disabled] {
+  background: color-mix(in srgb, var(--color-accent) 90%, white 10%);
+  opacity: 1; /* Override the default .65 opacity */
+}
 .btn--surface {
   background: var(--color-surface);
   color: var(--color-text);

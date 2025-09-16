@@ -258,7 +258,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
         {iconNode}
       </div>
     ) : null;
-
+    
   return (
     <div
       style={{
