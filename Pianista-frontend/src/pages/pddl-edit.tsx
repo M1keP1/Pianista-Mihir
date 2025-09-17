@@ -152,7 +152,7 @@ export default function PddlEditPage() {
   const [planPhase, setPlanPhase] = useState<PlanPhase>("idle");
   const [genLabel, setGenLabel] = useState<string>("Generate Plan");
   const [planId, setPlanId] = useState<string>("");
-  const [planErr, setPlanErr] = useState<string>("");
+  const [, setPlanErr] = useState<string>("");
 
   /* ---------------------------- Async plumbing ---------------------------- */
   const domainAbort = useRef<AbortController | null>(null);
@@ -583,7 +583,7 @@ export default function PddlEditPage() {
 const ensureValidDomain = async (dText: string): Promise<{ ok: boolean; text: string }> => {
   const d = dText.trim();
   if (!d) return { ok: false, text: "" };
-  setGenLabel("Validating domain…");
+  setGenLabel("Validating…");
   setDomainStatus("verification");
   try {
     const res = await validatePddl(d, "domain");
@@ -592,7 +592,7 @@ const ensureValidDomain = async (dText: string): Promise<{ ok: boolean; text: st
       setDomainMsg(res.message ?? "");
       return { ok: true, text: d };
     }
-    setGenLabel("Correcting domain…");
+    setGenLabel("Fixing…");
     const ai = await generateDomainFromNL(d, { attempts: 1, generate_both: false });
     if (ai.result_status === "success" && ai.generated_domain) {
       const fixed = ai.generated_domain.trim();
@@ -617,7 +617,7 @@ const ensureValidProblem = async (pText: string, dText: string): Promise<{ ok: b
   const p = pText.trim();
   const d = dText.trim();
   if (!p) return { ok: false, text: "" };
-  setGenLabel("Validating problem…");
+  setGenLabel("Validating…");
   setProblemStatus("verification");
   try {
     if (d) {
@@ -641,7 +641,7 @@ const ensureValidProblem = async (pText: string, dText: string): Promise<{ ok: b
       setProblemMsg(basic.message ?? "");
       return { ok: true, text: p };
     }
-    setGenLabel("Correcting problem…");
+    setGenLabel("Fixing…");
     const ai = await generateProblemFromNL(p, d || "", { attempts: 1, generate_both: false });
     if (ai.result_status === "success" && ai.generated_problem) {
       const fixed = ai.generated_problem.trim();
@@ -706,7 +706,6 @@ const handleGeneratePlan = async () => {
     navigate("/pddl-edit", { replace: true });
   };
 
-  const glowClass = planPhase === "polling" ? "glow-pulse" : "";
 
   /* --------------------------------- UI ----------------------------------- */
 
@@ -728,103 +727,92 @@ const handleGeneratePlan = async () => {
     >
       <BrandLogo />
 
-      {/* Bottom-left: open/close Mermaid */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "calc(1rem + 42px + 0.75rem)",
-          left: "1rem",
-          zIndex: 9,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
-        {showMermaid ? (
-          <PillButton
-            onClick={() => {
-              setShowMermaid(false);
-              setMermaidStatus("idle");
-            }}
-            label="PDDL View"
-            ariaLabel="Close Mermaid and return to PDDL editors"
-          />
-        ) : (
-          <PillButton
-            onClick={() => {
-              setShowMermaid(true);
-              // when opening, try cache-first; if miss, fetch
-              const d = domain.trim();
-              const p = problem.trim();
-              const needed =
-                mermaidUiMode === "D" ? !!d : mermaidUiMode === "P" ? !!p : !!(d && p);
-              if (!needed) return;
-              const cached = readMermaidCache(mermaidUiMode, d, p);
-              if (cached) {
-                setMermaidText(cached);
-                setMermaidStatus("verified");
-                lastMermaidKey.current = cacheKey(mermaidUiMode, d, p);
-              } else {
-                setMermaidStatus("ai-thinking");
-                fetchMermaidFor(mermaidUiMode, /* force */ true);
-              }
-            }}
-            label="Mermaid View"
-            ariaLabel="Open Mermaid and generate diagram"
-            disabled={!canConvertMermaid}
-          />
-        )}
+      {/* Floating actions dock (same level as footer; not fused) */}
+      <div className="actions-dock">
+        <div className="control-lane">
+          {/* View toggle button */}
+          {showMermaid ? (
+            <PillButton
+              onClick={() => {
+                setShowMermaid(false);
+                setMermaidStatus("idle");
+              }}
+              label="PDDL View"
+              ariaLabel="Close Mermaid and return to PDDL editors"
+            />
+          ) : (
+            <PillButton
+              onClick={() => {
+                if (!canConvertMermaid) return;
+                setShowMermaid(true);
+                const d = domain.trim();
+                const p = problem.trim();
+                const needed =
+                  mermaidUiMode === "D" ? !!d : mermaidUiMode === "P" ? !!p : !!(d && p);
+                if (!needed) return;
+
+                const cached = readMermaidCache(mermaidUiMode, d, p);
+                if (cached) {
+                  setMermaidText(cached);
+                  setMermaidStatus("verified");
+                  lastMermaidKey.current = cacheKey(mermaidUiMode, d, p);
+                } else {
+                  setMermaidStatus("ai-thinking");
+                  fetchMermaidFor(mermaidUiMode, true);
+                }
+              }}
+              label="Mermaid View"
+              ariaLabel="Open Mermaid diagram"
+              disabled={!canConvertMermaid}
+            />
+          )}
+
+          {/* Generate (uses your original glow-pulse while busy) */}
+          {planPhase === "success" ? (
+            <PillButton
+              to={`/plan?job=${encodeURIComponent(planId)}`}
+              label="See Plan"
+              rightIcon={<Check />}
+              ariaLabel="See generated plan"
+            />
+          ) : (
+            <div
+              className={planPhase === "submitting" || planPhase === "polling" ? "glow-pulse" : ""}
+              style={{ display: "inline-flex", borderRadius: 10 }}
+            >
+              <PillButton
+                onClick={handleGeneratePlan}
+                label={
+                  planPhase === "submitting" || planPhase === "polling"
+                    ? genLabel
+                    : "Generate Plan"
+                }
+                rightIcon={
+                  planPhase === "submitting" ? <Spinner /> :
+                  planPhase === "polling" ? <Brain /> :
+                  undefined
+                }
+                disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
+                ariaLabel="Generate plan from current PDDL"
+              />
+            </div>
+          )}
+
+          {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
+          <div className="reset-slot">
+            {planPhase === "success" && (
+              <PillButton
+                onClick={handleRegenerate}
+                label=""
+                rightIcon={<Reload />}
+                ariaLabel="Clear Plan"
+              />
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Bottom-right: planning actions */}
-      <div
-        className={glowClass}
-        style={{
-          position: "absolute",
-          bottom: "calc(1rem + 42px + 0.75rem)",
-          right: "1rem",
-          zIndex: 9,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
-        {planPhase === "success" && (
-          <PillButton onClick={handleRegenerate} label="" rightIcon={<Reload />} ariaLabel="Clear Plan" />
-        )}
 
-        {planPhase === "success" ? (
-          <PillButton
-            to={`/plan?job=${encodeURIComponent(planId)}`}
-            label="See Plan"
-            rightIcon={<Check />}
-            ariaLabel="See generated plan"
-          />
-        ) : (
-          <PillButton
-            onClick={handleGeneratePlan}
-            label={planPhase === "submitting" || planPhase === "polling" ? genLabel : "Generate Plan"}
-            rightIcon={planPhase === "submitting" ? <Spinner /> : planPhase === "polling" ? <Brain /> : undefined}
-            disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
-            ariaLabel="Generate plan from current PDDL"
-          />
-
-        )}
-
-        {planPhase === "error" && planErr && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-danger, #dc2626)",
-              marginLeft: 6,
-              maxWidth: 320,
-              textAlign: "left",
-            }}
-          >
-            {planErr}
-          </span>
-        )}
-      </div>
 
       {/* Glow CSS for plan button cluster */}
       <style>
@@ -951,8 +939,16 @@ const handleGeneratePlan = async () => {
                 statusHint={domainMsg || undefined}
                 spellCheck={domainMode === "AI"}
                 onKeyDown={() => updateAtEnd(domainRef, setDomainAtEnd)}
+                statusIcons={
+                domainMode === "AI"
+                  ? {
+                      verification: <span className="status-icon"><Spinner /></span>,
+                      aiThinking:  <span className="status-icon"><Brain /></span>,
+                    }
+                  : undefined
+              }
               />
-              <div className="field-hint">Type to enhance/correct..</div>
+              <div className="field-hint">Hint: Type to enhance/correct..</div>
             </div>
           </section>
 
@@ -1031,8 +1027,16 @@ const handleGeneratePlan = async () => {
               statusHint={problemMsg || undefined}
               spellCheck={problemMode === "AI"}
               onKeyDown={() => updateAtEnd(problemRef, setProblemAtEnd)}
-            />
-            <div className="field-hint">Type to enhance/correct..</div>
+                              statusIcons={
+                domainMode === "AI"
+                  ? {
+                      verification: <span className="status-icon"><Brain/></span>,
+                      aiThinking:  <span className="status-icon"><Brain /></span>,
+                    }
+                  : undefined
+              }
+              />
+            <div className="field-hint">Hint: PDDL Syntax gets autocorrected with AI...</div>
             </div>
           </section>
 

@@ -228,7 +228,7 @@ textarea[data-p-textarea].glow--ai-thinking {
 .status-pill {
   position: absolute;
   top: 8px;
-  right: 8px;
+  right: 12px;
   width: 26px;
   height: 26px;
   display: grid;
@@ -240,7 +240,7 @@ textarea[data-p-textarea].glow--ai-thinking {
   color: var(--color-text);
   z-index: 2; /* keep above textarea paint */
 }
-.status-pill.is-left { left: 8px; right: auto; }
+.status-pill.is-left { left: 12px; right: auto; }
 
 /* State colors (background + fg color) */
 .status-pill[data-state="verification"] { background: rgba(16,185,129,.12); color: var(--color-accent); }
@@ -328,3 +328,75 @@ section[data-busy-glow="true"] {
   user-select: none;
 }
 
+/* Generic glow utilities (match textarea glows) */
+.glow--verification {
+  --glow-color: color-mix(in srgb, var(--color-accent) 80%, #10b981);
+  border-color: var(--glow-color) !important;
+  animation: pulseGlow 1.4s linear infinite;
+}
+.glow--ai-thinking {
+  --glow-color: #3b82f6;
+  border-color: var(--glow-color) !important;
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+.glow--error {
+  --glow-color: #ef4444;
+  border-color: var(--glow-color) !important;
+  box-shadow: 0 0 10px 2px var(--glow-color);
+}
+.glow--verified {
+  --glow-color: #22c55e;
+  border-color: var(--glow-color) !important;
+  box-shadow: 0 0 10px 2px var(--glow-color);
+}
+
+/* Chip container (same look/height as footer chip) */
+.footer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px;                 /* same vertical height */
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--color-bg) 20%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px var(--color-shadow);
+}
+:root{
+  /* tweak this to nudge the dock horizontally relative to page center */
+  --actions-offset: 220px;
+}
+
+/* Floating actions dock at same level as footer (not fused) */
+.actions-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 3px;                 /* same bottom spacing as footer chip */
+  transform: translateX(var(--actions-offset));
+  z-index: 11;                 /* above content; below modals */
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;        /* so it doesn’t block page clicks... */
+}
+.actions-dock > * { pointer-events: auto; } /* ...but its children do */
+
+/* optional: visually align height with footer chip without adding a box */
+.actions-dock .control-lane {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;                /* matches typical footer chip height */
+}
+
+/* Reserve space for the reset icon button so layout doesn't jump */
+.reset-slot {
+  width: 44px;            /* tweak if your icon PillButton is wider/narrower */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+}
+@media (max-width: 560px) {
+  .reset-slot { width: 40px; flex-basis: 40px; }
+}
