@@ -1,82 +1,178 @@
 // src/components/PillButton.tsx
-import React from "react";
-import { Link, type LinkProps } from "react-router-dom";
+import * as React from "react";
+import { Link } from "react-router-dom";
 
-type Action =
-  | { to: LinkProps["to"]; href?: never; onClick?: never; external?: never }
-  | { href: string; external?: boolean; to?: never; onClick?: never }
-  | { onClick: React.MouseEventHandler<HTMLButtonElement>; to?: never; href?: never; external?: never };
-
-export type PillButtonProps = Action & {
-  label: string;
-  disabled?: boolean;
+export type PillButtonProps = {
+  /** Visible text label (omit when iconOnly = true) */
+  label?: string;
+  /** Accessible label (required when iconOnly = true) */
+  ariaLabel?: string;
+  to?: string;
+  /** Optional icons */
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  ariaLabel?: string;
+
+  /** Render as a compact circular icon-only pill */
+  iconOnly?: boolean;
+
+  /** Disabled state */
+  disabled?: boolean;
+
+  /** Click handler */
+  onClick?: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
+
+  /** Link rendering (when provided, renders an <a>) */
+  href?: string;
+  target?: string;
+  rel?: string;
+
+  /** Button type (when rendering a <button>) */
+  type?: "button" | "submit" | "reset";
+
+  /** Style overrides */
+  className?: string;
+  style?: React.CSSProperties;
 };
 
-export default function PillButton(props: PillButtonProps) {
-  const { label, disabled, leftIcon, rightIcon, ariaLabel } = props;
+/**
+ * PillButton
+ * - Opaque/outlined surface using theme tokens
+ * - Smooth hover/active transitions
+ * - `iconOnly` for compact circular icon buttons (ideal for "Send")
+ */
+export default function PillButton({
+  label,
+  ariaLabel,
+  leftIcon,
+  rightIcon,
+  iconOnly = false,
+  disabled = false,
+  onClick,
+  href,
+  to,
+  target,
+  rel,
+  type = "button",
+  className,
+  style,
+}: PillButtonProps) {
+  const [isHover, setHover] = React.useState(false);
+  const [isActive, setActive] = React.useState(false);
 
+  // Accessibility guard: ensure an aria-label exists for icon-only usage
+  const computedAriaLabel =
+    iconOnly ? ariaLabel ?? label ?? "Button" : ariaLabel;
+
+  // Base visual styles
   const baseStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "0.5rem",
-    fontFamily: "monospace",
-    fontSize: "0.9rem",
-    fontWeight: 500,
-    padding: "6px 16px",
-    borderRadius: "8px",
-    background: "var(--color-surface)", // theme-based background
-    color: "var(--color-text)",         // theme text
+    gap: iconOnly ? 0 : 8,
+    fontFamily: "var(--font-sans, system-ui, sans-serif)",
+    fontSize: iconOnly ? 14 : 14,
+    fontWeight: 600,
+    lineHeight: 1,
+    padding: iconOnly ? 0 : "6px 16px",
+    width: iconOnly ? 36 : undefined,
+    height: iconOnly ? 36 : undefined,
+    borderRadius: iconOnly ? 999 : 10,
+    background: "var(--color-surface)",
+    color: "var(--color-text)",
     border: "1px solid var(--color-border-muted)",
     boxShadow: "0 1px 4px var(--color-shadow)",
     textDecoration: "none",
     cursor: disabled ? "not-allowed" : "pointer",
     pointerEvents: disabled ? "none" : "auto",
-    transition: "transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease",
+    userSelect: "none",
+    transition:
+      "transform 120ms ease, background-color 150ms ease, box-shadow 150ms ease, opacity 150ms ease",
+    // Nice focus ring without default outline
+    outline: "none",
   };
 
-  const hoverStyle: React.CSSProperties = {
-    transform: "scale(1.05)", // enlarge slightly on hover
-    background: "color-mix(in srgb, var(--color-accent) 12%, var(--color-surface) 88%)",
-    boxShadow: "0 3px 10px var(--color-shadow)",
+  // Hover & active effects
+  const hoverStyle: React.CSSProperties = isHover
+    ? {
+        background:
+          "color-mix(in srgb, var(--color-accent) 12%, var(--color-surface) 88%)",
+        boxShadow: "0 3px 10px var(--color-shadow)",
+        transform: "translateZ(0) scale(1.04)",
+      }
+    : {};
+
+  const activeStyle: React.CSSProperties = isActive
+    ? {
+        transform: "scale(0.97)",
+      }
+    : {};
+
+  const mergedStyle: React.CSSProperties = {
+    ...baseStyle,
+    ...hoverStyle,
+    ...activeStyle,
+    ...(style ?? {}),
   };
-
-  const [isHover, setHover] = React.useState(false);
-
-  const style = { ...baseStyle, ...(isHover ? hoverStyle : {}) };
 
   const content = (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-      {leftIcon && <span>{leftIcon}</span>}
-      <span>{label}</span>
-      {rightIcon && <span>{rightIcon}</span>}
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: iconOnly ? 0 : 8,
+      }}
+    >
+      {leftIcon && <span aria-hidden="true">{leftIcon}</span>}
+      {!iconOnly && !!label && <span>{label}</span>}
+      {rightIcon && <span aria-hidden="true">{rightIcon}</span>}
     </span>
   );
 
-  const commonProps = {
-    style,
+  const commonHandlers = {
     onMouseEnter: () => setHover(true),
-    onMouseLeave: () => setHover(false),
-    onMouseDown: press,
-    onMouseUp: unpress,
+    onMouseLeave: () => {
+      setHover(false);
+      setActive(false);
+    },
+    onMouseDown: () => setActive(true),
+    onMouseUp: () => setActive(false),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (disabled) return;
+      if (e.key === " " || e.key === "Enter") setActive(true);
+    },
+    onKeyUp: (e: React.KeyboardEvent) => {
+      if (disabled) return;
+      if (e.key === " " || e.key === "Enter") setActive(false);
+    },
   };
-
-  if ("to" in props && props.to) {
+  if (to) {
     return (
-      <Link to={props.to} aria-label={ariaLabel ?? label} {...commonProps}>
+      <Link
+        to={to}
+        aria-label={computedAriaLabel}
+        onClick={onClick as any}
+        className={className}
+        style={mergedStyle}
+        {...commonHandlers}
+      >
         {content}
       </Link>
     );
   }
 
-  if ("href" in props && props.href) {
-    const rel = props.external ? "noopener noreferrer" : undefined;
-    const target = props.external ? "_blank" : undefined;
+  if (href) {
     return (
-      <a href={props.href} target={target} rel={rel} aria-label={ariaLabel ?? label} {...commonProps}>
+      <a
+        role="button"
+        aria-label={computedAriaLabel}
+        href={href}
+        target={target}
+        rel={rel}
+        onClick={onClick as any}
+        className={className}
+        style={mergedStyle}
+        {...commonHandlers}
+      >
         {content}
       </a>
     );
@@ -84,20 +180,15 @@ export default function PillButton(props: PillButtonProps) {
 
   return (
     <button
-      type="button"
-      aria-label={ariaLabel ?? label}
+      type={type}
+      aria-label={computedAriaLabel}
       disabled={disabled}
-      {...commonProps}
-      onClick={props.onClick}
+      onClick={onClick as any}
+      className={className}
+      style={mergedStyle}
+      {...commonHandlers}
     >
       {content}
     </button>
   );
-}
-
-function press(e: React.MouseEvent<HTMLElement>) {
-  (e.currentTarget as HTMLElement).style.transform = "scale(0.96)";
-}
-function unpress(e: React.MouseEvent<HTMLElement>) {
-  (e.currentTarget as HTMLElement).style.transform = "scale(1)";
 }
