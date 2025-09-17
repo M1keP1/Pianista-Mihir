@@ -41,6 +41,8 @@ export type MermaidPanelProps = {
   fontSize?: number;
   themeCSS?: string;
   sourceTransform?: (src: string) => string;
+
+  statusHint?: string;
 };
 
 export default function MermaidPanel({
@@ -66,6 +68,7 @@ export default function MermaidPanel({
   fontSize = 14,
   themeCSS = "",
   sourceTransform,
+  statusHint,
 }: MermaidPanelProps) {
   // Default to MM (graph)
   const [localView, setLocalView] = useState<"text" | "graph">("graph");
@@ -112,7 +115,7 @@ export default function MermaidPanel({
       nodeBorder: palette.border,
       edgeLabelBackground: palette.surface,
       noteBkgColor: palette.surface,
-      noteTextColor: palette.text,
+      noteTextColor: palette.text, 
       labelBackground: palette.surface,
       secondaryColor: palette.border,
       outsideFillColor: palette.bg,
@@ -173,7 +176,7 @@ export default function MermaidPanel({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "10px 12px",
+          padding: "8px 10px",
           borderBottom: "1px solid var(--color-border-muted)",
           background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
         }}
@@ -198,14 +201,14 @@ export default function MermaidPanel({
         style={{
           position: "relative",
           height: typeof height === "number" ? `${height}px` : height,
-          padding: 12,
+          padding: 10,
           overflow: "hidden",
           display: "flex",
         }}
       >
         {/* Top-right status (still visible in MM) */}
-        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 2 }}>
-          <StatusPill state={status} />
+        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 6 }}>
+          <StatusPill state={status} hint={statusHint}/>
         </div>
 
         {currentView === "text" ? (

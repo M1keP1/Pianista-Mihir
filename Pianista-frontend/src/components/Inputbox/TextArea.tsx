@@ -24,6 +24,7 @@ export type TextareaHandle = {
   blur: () => void;
   select: () => void;
   textarea: HTMLTextAreaElement | null;
+  statusHint?: string;
 };
 
 export type TextAreaStatus =
@@ -43,6 +44,9 @@ export type TextareaProps = {
   ariaLabel?: string;
   name?: string;
   id?: string;
+
+  /** Optional hint for the status pill (displayed as tooltip/title). */
+  statusHint?: string;
 
   minRows?: number;       // default 3
   maxRows?: number;       // default 5
@@ -112,6 +116,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     showStatusPill = false,
     statusPillPlacement = "top-right",
     statusIcons,
+    statusHint
   },
   ref
 ) {
@@ -188,7 +193,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       boxSizing: "border-box",
       width: "100%",
       height: toCss(height),
-      padding: ".65rem .8rem",
+      padding: ".5rem .7rem",
       fontFamily: "var(--font-sans)",
       fontSize: ".95rem",
       lineHeight: 1.4,
@@ -253,6 +258,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       <div
         className={`status-pill${statusPillPlacement === "top-left" ? " is-left" : ""}`}
         data-state={status}
+        data-hint={statusHint || undefined}
         aria-hidden
       >
         {iconNode}

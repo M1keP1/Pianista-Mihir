@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import BrandLogo from "@/components/VS_BrandButton";
 import PillButton from "@/components/PillButton";
-import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
+import Textarea, { type TextAreaStatus, type TextareaHandle } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/components/MermaidPanel";
 
@@ -34,7 +34,6 @@ import { useTwoModeAutoDetect, type TwoMode } from "@/hooks/useTwoModeAutoDetect
 
 /* -------------------------------------------------------------------------- */
 
-const MESSAGE_MIN_H = 40;
 const DEBOUNCE_MS = 2500;
 
 type PlanPhase = "idle" | "submitting" | "polling" | "success" | "error";
@@ -129,6 +128,18 @@ export default function PddlEditPage() {
   const [domain, setDomain] = useState("");
   const [problem, setProblem] = useState("");
 
+  const domainRef = useRef<TextareaHandle>(null);
+  const problemRef = useRef<TextareaHandle>(null);
+  const [domainAtEnd, setDomainAtEnd] = useState(true);
+  const [problemAtEnd, setProblemAtEnd] = useState(true);
+
+  const updateAtEnd = (ref: React.RefObject<TextareaHandle | null>, setter: (v: boolean) => void) => {
+      const el = ref.current?.textarea;
+      if (!el) return;
+      const atEnd = el.selectionStart === el.selectionEnd && el.selectionStart === el.value.length;
+      setter(atEnd);
+    };
+
   const [domainMode, setDomainMode] = useState<DomainEditMode>("AI");
   const [problemMode, setProblemMode] = useState<ProblemEditMode>("AI");
 
@@ -139,6 +150,7 @@ export default function PddlEditPage() {
 
   /* -------------------------------- Plan ---------------------------------- */
   const [planPhase, setPlanPhase] = useState<PlanPhase>("idle");
+  const [genLabel, setGenLabel] = useState<string>("Generate Plan");
   const [planId, setPlanId] = useState<string>("");
   const [planErr, setPlanErr] = useState<string>("");
 
@@ -170,14 +182,20 @@ export default function PddlEditPage() {
     kind: "domain",
     text: domain,
     value: domainMode as TwoMode,
-    onAuto: (m) => setDomainMode((m === "P" ? "AI" : m) as DomainEditMode),
+    onAuto: (m) => {
+      if (!domainAtEnd) return; // only flip if caret is at end
+      setDomainMode((m === "P" ? "AI" : m) as DomainEditMode);
+    },
     manualPriorityMs: 1200,
   });
   useTwoModeAutoDetect({
     kind: "problem",
     text: problem,
     value: problemMode as TwoMode,
-    onAuto: (m) => setProblemMode((m === "D" ? "AI" : m) as ProblemEditMode),
+    onAuto: (m) => {
+      if (!problemAtEnd) return; // only flip if caret is at end
+      setProblemMode((m === "D" ? "AI" : m) as ProblemEditMode);
+    },
     manualPriorityMs: 1200,
   });
 
@@ -562,24 +580,122 @@ export default function PddlEditPage() {
       }
     }, 2500);
   };
-
-  const handleGeneratePlan = async () => {
-    if (!canGenerate || planPhase === "submitting" || planPhase === "polling") return;
-    setPlanPhase("submitting");
-    setPlanErr("");
-    try {
-      const d = domain.trim();
-      const p = problem.trim();
-      savePddlSnapshot(d, p);
-      if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem: p });
-      const { id } = await generatePlan(d, p, { convert_real_types: true });
-      savePlanJob(id, d, p);
-      startPolling(id);
-    } catch (e: any) {
-      setPlanPhase("error");
-      setPlanErr(e?.message || "Failed to start planning.");
+const ensureValidDomain = async (dText: string): Promise<{ ok: boolean; text: string }> => {
+  const d = dText.trim();
+  if (!d) return { ok: false, text: "" };
+  setGenLabel("Validating domain…");
+  setDomainStatus("verification");
+  try {
+    const res = await validatePddl(d, "domain");
+    if (res.result === "success") {
+      setDomainStatus("verified");
+      setDomainMsg(res.message ?? "");
+      return { ok: true, text: d };
     }
-  };
+    setGenLabel("Correcting domain…");
+    const ai = await generateDomainFromNL(d, { attempts: 1, generate_both: false });
+    if (ai.result_status === "success" && ai.generated_domain) {
+      const fixed = ai.generated_domain.trim();
+      setDomain(fixed);
+      const re = await validatePddl(fixed, "domain");
+      const ok = re.result === "success";
+      setDomainStatus(ok ? "verified" : "error");
+      setDomainMsg(re.message ?? (ok ? "" : "Domain still invalid after AI repair."));
+      return { ok, text: fixed };
+    }
+    setDomainStatus("error");
+    setDomainMsg(res.message || "Domain invalid, and AI repair failed.");
+    return { ok: false, text: d };
+  } catch (e: any) {
+    setDomainStatus("error");
+    setDomainMsg(e?.message || "Domain validation failed.");
+    return { ok: false, text: d };
+  }
+};
+
+const ensureValidProblem = async (pText: string, dText: string): Promise<{ ok: boolean; text: string }> => {
+  const p = pText.trim();
+  const d = dText.trim();
+  if (!p) return { ok: false, text: "" };
+  setGenLabel("Validating problem…");
+  setProblemStatus("verification");
+  try {
+    if (d) {
+      try {
+        const match = await validateMatchPddl(d, p);
+        if (match.result === "success") {
+          setProblemStatus("verified");
+          setProblemMsg(match.message ?? "");
+          return { ok: true, text: p };
+        }
+      } catch { /* fall through to basic */ }
+    }
+    const basic = await validatePddl(p, "problem");
+    if (basic.result === "success" && d) {
+      setProblemStatus("error");
+      setProblemMsg("Syntax OK, but the problem does not match the current domain.");
+      return { ok: false, text: p };
+    }
+    if (basic.result === "success") {
+      setProblemStatus("verified");
+      setProblemMsg(basic.message ?? "");
+      return { ok: true, text: p };
+    }
+    setGenLabel("Correcting problem…");
+    const ai = await generateProblemFromNL(p, d || "", { attempts: 1, generate_both: false });
+    if (ai.result_status === "success" && ai.generated_problem) {
+      const fixed = ai.generated_problem.trim();
+      setProblem(fixed);
+      if (d) {
+        const match2 = await validateMatchPddl(d, fixed);
+        const ok = match2.result === "success";
+        setProblemStatus(ok ? "verified" : "error");
+        setProblemMsg(match2.message ?? (ok ? "" : "Problem still mismatched after AI repair."));
+        return { ok, text: fixed };
+      }
+      const basic2 = await validatePddl(fixed, "problem");
+      const ok = basic2.result === "success";
+      setProblemStatus(ok ? "verified" : "error");
+      setProblemMsg(basic2.message ?? (ok ? "" : "Problem still invalid after AI repair."));
+      return { ok, text: fixed };
+    }
+    setProblemStatus("error");
+    setProblemMsg(basic.message || "Problem invalid, and AI repair failed.");
+    return { ok: false, text: p };
+  } catch (e: any) {
+    setProblemStatus("error");
+    setProblemMsg(e?.message || "Problem validation failed.");
+    return { ok: false, text: p };
+  }
+};
+
+const handleGeneratePlan = async () => {
+  if (!canGenerate || planPhase === "submitting" || planPhase === "polling") return;
+  setPlanPhase("submitting");
+  setPlanErr("");
+  try {
+    const dom = await ensureValidDomain(domain);
+    const prob = await ensureValidProblem(problem, dom.text);
+    if (!dom.ok || !prob.ok) {
+      setPlanPhase("error");
+      setPlanErr("Inputs are invalid even after AI repair.");
+      setGenLabel("Generate Plan");
+      return;
+    }
+    const d = dom.text.trim();
+    const p = prob.text.trim();
+    setGenLabel("Generating…");
+    savePddlSnapshot(d, p);
+    if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem: p });
+    const { id } = await generatePlan(d, p, { convert_real_types: true });
+    savePlanJob(id, d, p);
+    startPolling(id);
+  } catch (e: any) {
+    setPlanPhase("error");
+    setPlanErr(e?.message || "Failed to start planning.");
+  }
+};
+
 
   const handleRegenerate = () => {
     if (pollTimer.current) clearInterval(pollTimer.current);
@@ -687,11 +803,12 @@ export default function PddlEditPage() {
         ) : (
           <PillButton
             onClick={handleGeneratePlan}
-            label={planPhase === "submitting" || planPhase === "polling" ? "Generating…" : "Generate Plan"}
+            label={planPhase === "submitting" || planPhase === "polling" ? genLabel : "Generate Plan"}
             rightIcon={planPhase === "submitting" ? <Spinner /> : planPhase === "polling" ? <Brain /> : undefined}
             disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
             ariaLabel="Generate plan from current PDDL"
           />
+
         )}
 
         {planPhase === "error" && planErr && (
@@ -733,6 +850,11 @@ export default function PddlEditPage() {
             visible={showMermaid}
             height="50vh"
             status={mermaidStatus}
+              statusHint={
+              mermaidStatus === "error" ? "Mermaid conversion failed." :
+              mermaidStatus === "verified" ? "Diagram is up to date." :
+              mermaidStatus === "ai-thinking" ? "Converting…" : undefined
+            }
             busy={mermaidStatus === "ai-thinking" || mermaidStatus === "verification"} // translucent overlay + glow
             editable
             onTextChange={(next) => {
@@ -767,58 +889,73 @@ export default function PddlEditPage() {
               background: "var(--color-surface)",
               border: "1px solid var(--color-border-muted)",
               borderRadius: 12,
-              padding: 14,
+              padding: 0,                      // ⬅ like MermaidPanel
               boxShadow: "0 1.5px 10px var(--color-shadow)",
+              overflow: "hidden",              // ⬅ like MermaidPanel
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            {/* Header (same structure & styling approach as MermaidPanel header) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                borderBottom: "1px solid var(--color-border-muted)",
+                background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span aria-hidden style={{ width: 10, height: 10, borderRadius: 999, background: "var(--color-accent)" }} />
                 <strong>Domain</strong>
               </div>
-              <ModeSlider<"AI" | "D">
-                value={domainMode}
-                onChange={setDomainMode}
-                modes={[
-                  { key: "AI", short: "AI", full: "Generate / Validate with AI" },
-                  { key: "D", short: "D", full: "Write PDDL Domain" },
-                ]}
-                size="xs"
-                aria-label="Domain editor mode"
-              />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <ModeSlider<"AI" | "D">
+                  value={domainMode}
+                  onChange={setDomainMode}
+                  modes={[
+                    { key: "AI", short: "AI", full: "Generate / Validate with AI" },
+                    { key: "D", short: "D", full: "Write PDDL Domain" },
+                  ]}
+                  size="xs"
+                  aria-label="Domain editor mode"
+                />
+                <PillButton
+                  label=""
+                  ariaLabel="Render Mermaid"
+                  rightIcon={<span style={{ fontSize: 14, lineHeight: 1 }}>↵</span>}
+                  onClick={() => fetchMermaidFor(mermaidUiMode, /* force */ true)}
+                />
+              </div>
             </div>
 
-            <Textarea
-              value={domain}
-              onChange={setDomain}
-              onSubmit={() => (domainMode === "AI" ? generateDomainNow(domain) : validateDomainNow(domain))}
-              placeholder={domainMode === "AI" ? "Describe the domain in natural language…" : "(define (domain ...))"}
-              height={showMermaid ? "16vh" : "55vh"}
-              autoResize={false}
-              showStatusPill
-              status={domainStatus}
-              statusPillPlacement="top-right"
-              spellCheck={domainMode === "AI"}
-            />
-
-            <div
-              style={{
-                minHeight: MESSAGE_MIN_H,
-                marginTop: 8,
-                fontSize: ".85rem",
-                opacity: domainMsg ? 0.9 : 0,
-                color:
-                  domainStatus === "verified"
-                    ? "var(--color-success, #16a34a)"
-                    : domainStatus === "error"
-                    ? "var(--color-danger, #dc2626)"
-                    : "var(--color-text-muted)",
-                transition: "opacity 120ms ease",
-              }}
-            >
-              {domainMsg || " "}
+            {/* Body */}
+            <div style={{ position: "relative", padding: 10 }}>
+              <Textarea
+                ref={domainRef}
+                value={domain}
+                onChange={(v) => {
+                  setDomain(v);
+                  setDomainStatus("idle");
+                  setDomainMsg("");
+                  requestAnimationFrame(() => updateAtEnd(domainRef, setDomainAtEnd));
+                }}
+                onSubmit={() => (domainMode === "AI" ? generateDomainNow(domain) : validateDomainNow(domain))}
+                placeholder={domainMode === "AI" ? "Describe the domain in natural language…" : "(define (domain ...))"}
+                height={showMermaid ? "16vh" : "55vh"}
+                autoResize={false}
+                showStatusPill
+                status={domainStatus}
+                statusPillPlacement="top-right"
+                statusHint={domainMsg || undefined}
+                spellCheck={domainMode === "AI"}
+                onKeyDown={() => updateAtEnd(domainRef, setDomainAtEnd)}
+              />
+              <div className="field-hint">Type to enhance/correct..</div>
             </div>
           </section>
+
 
           {/* Problem */}
           <section
@@ -826,11 +963,22 @@ export default function PddlEditPage() {
               background: "var(--color-surface)",
               border: "1px solid var(--color-border-muted)",
               borderRadius: 12,
-              padding: 14,
+              padding: 0,                      // ⬅ like MermaidPanel
               boxShadow: "0 1.5px 10px var(--color-shadow)",
+              overflow: "hidden",              // ⬅ like MermaidPanel
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            {/* Header (same pattern) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                borderBottom: "1px solid var(--color-border-muted)",
+                background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   aria-hidden
@@ -843,51 +991,51 @@ export default function PddlEditPage() {
                 />
                 <strong>Problem</strong>
               </div>
-              <ModeSlider<"AI" | "P">
-                value={problemMode}
-                onChange={setProblemMode}
-                modes={[
-                  { key: "AI", short: "AI", full: "Generate / Validate with AI" },
-                  { key: "P", short: "P", full: "Write PDDL Problem" },
-                ]}
-                size="xs"
-                aria-label="Problem editor mode"
-              />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <ModeSlider<"AI" | "P">
+                  value={problemMode}
+                  onChange={setProblemMode}
+                  modes={[
+                    { key: "AI", short: "AI", full: "Generate / Validate with AI" },
+                    { key: "P", short: "P", full: "Write PDDL Problem" },
+                  ]}
+                  size="xs"
+                  aria-label="Problem editor mode"
+                />
+              </div>
             </div>
 
+            {/* Body */}
+            <div style={{ position: "relative", padding: 10 }}>
             <Textarea
+              ref={problemRef}
               value={problem}
-              onChange={setProblem}
+              onChange={(v) => {
+                setProblem(v);
+                setProblemStatus("idle");
+                setProblemMsg("");
+                requestAnimationFrame(() => updateAtEnd(problemRef, setProblemAtEnd));
+              }}
               onSubmit={() =>
                 problemMode === "AI" ? generateProblemNow(problem, domain) : validateProblemNow(problem, domain)
               }
-              placeholder={problemMode === "AI" ? "Describe the goal in natural language…" : "(define (problem ...) (:domain ...))"}
+              placeholder={
+                problemMode === "AI" ? "Describe the goal in natural language…" : "(define (problem ...) (:domain ...))"
+              }
               height={showMermaid ? "16vh" : "55vh"}
               autoResize={false}
               showStatusPill
               status={problemStatus}
               statusPillPlacement="top-right"
+              statusHint={problemMsg || undefined}
               spellCheck={problemMode === "AI"}
+              onKeyDown={() => updateAtEnd(problemRef, setProblemAtEnd)}
             />
-
-            <div
-              style={{
-                minHeight: MESSAGE_MIN_H,
-                marginTop: 8,
-                fontSize: ".85rem",
-                opacity: problemMsg ? 0.9 : 0,
-                color:
-                  problemStatus === "verified"
-                    ? "var(--color-success, #16a34a)"
-                    : problemStatus === "error"
-                    ? "var(--color-danger, #dc2626)"
-                    : "var(--color-text-muted)",
-                transition: "opacity 120ms ease",
-              }}
-            >
-              {problemMsg || " "}
+            <div className="field-hint">Type to enhance/correct..</div>
             </div>
           </section>
+
         </div>
 
         {/* Spacer so content never hides behind the fixed footer/actions */}

@@ -224,7 +224,6 @@ textarea[data-p-textarea].glow--ai-thinking {
   border-color: var(--glow-color);
   animation: pulseGlow 1.6s ease-in-out infinite;
 }
-
 /* ===== Status pill (pure CSS, theme-aware) ===== */
 .status-pill {
   position: absolute;
@@ -239,8 +238,8 @@ textarea[data-p-textarea].glow--ai-thinking {
   box-shadow: 0 1px 6px var(--color-shadow);
   background: transparent;
   color: var(--color-text);
+  z-index: 2; /* keep above textarea paint */
 }
-
 .status-pill.is-left { left: 8px; right: auto; }
 
 /* State colors (background + fg color) */
@@ -253,22 +252,10 @@ textarea[data-p-textarea].glow--ai-thinking {
 .status-icon { width: 16px; height: 16px; display: block; }
 
 /* Optional spinner animation (apply .spin class to the icon node) */
-@keyframes spin {
-  to { transform: rotate(1turn); }
-}
+@keyframes spin { to { transform: rotate(1turn); } }
 .spin { animation: spin 1s linear infinite; }
 
-/* MermaidPanel busy glow */
-section[data-busy-glow="true"] {
-  animation: mmPanelGlow 1.2s ease-in-out infinite;
-  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border-muted));
-  /* subtle lift like TextArea */
-  box-shadow:
-    0 1px 10px color-mix(in srgb, var(--color-shadow) 70%, transparent),
-    0 0 0 4px color-mix(in srgb, var(--color-accent) 12%, transparent);
-}
-
-
+/* MermaidPanel busy glow (unchanged) */
 section[data-busy-glow="true"] {
   animation: mmPanelGlow 1.2s ease-in-out infinite;
   border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border-muted));
@@ -276,3 +263,68 @@ section[data-busy-glow="true"] {
     0 1px 10px color-mix(in srgb, var(--color-shadow) 70%, transparent),
     0 0 0 4px color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
+
+/* ===== Inline side-hint INSIDE the textarea =====
+   Shows next to the pill; never escapes the container.
+   Works on :hover and :focus (so click-to-pin if element is focusable). */
+.status-pill[data-hint]::after,
+.status-pill[data-hint]::before {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 3; /* above pill */
+}
+
+/* Bubble body */
+.status-pill[data-hint]::after {
+  content: attr(data-hint);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 999px; /* pill-shaped */
+  background: color-mix(in srgb, var(--color-bg) 88%, var(--color-surface));
+  border: 1px solid var(--color-border-muted);
+  box-shadow: 0 1px 6px var(--color-shadow) inset;
+  color: var(--color-text);
+  white-space: nowrap;         /* keeps pill shape */
+  max-width: 65ch;             /* avoid huge pills */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Arrow (small diamond) */
+.status-pill[data-hint]::before {
+  content: "";
+  top: 50%;
+  width: 8px; height: 8px;
+  background: color-mix(in srgb, var(--color-bg) 88%, var(--color-surface));
+  transform: translateY(-50%) rotate(45deg);
+  box-shadow: 0 0 0 1px var(--color-border-muted) inset;
+}
+
+/* If the pill is on the LEFT, place bubble to its RIGHT (inside the textarea) */
+.status-pill.is-left[data-hint]::after { left: calc(100% + 8px); }
+.status-pill.is-left[data-hint]::before { left: calc(100% + 2px); }
+
+/* Default (pill on the RIGHT): place bubble to its LEFT (inside the textarea) */
+.status-pill:not(.is-left)[data-hint]::after { right: calc(100% + 8px); }
+.status-pill:not(.is-left)[data-hint]::before { right: calc(100% + 2px); }
+
+/* Reveal on hover OR focus (click pins if the pill can receive focus) */
+.status-pill[data-hint]:is(:hover, :focus)::after,
+.status-pill[data-hint]:is(:hover, :focus)::before {
+  opacity: 1;
+}
+
+/* Small helper note under editors */
+.field-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--color-text-muted, color-mix(in srgb, var(--color-text) 55%, transparent));
+  user-select: none;
+}
+

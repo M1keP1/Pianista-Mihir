@@ -8,9 +8,12 @@ export type TextAreaStatus = "idle" | "verification" | "verified" | "error" | "a
 export default function StatusPill({
   state,
   placement = "top-right",
+  hint,
+  
 }: {
   state: TextAreaStatus;
   placement?: "top-right" | "top-left";
+  hint?: string;
 }) {
   if (state === "idle") return null;
 
@@ -19,6 +22,7 @@ export default function StatusPill({
     <div
       className={`status-pill${isLeft ? " is-left" : ""}`}
       data-state={state}
+      data-hint={hint || undefined}
       aria-hidden
     >
       {state === "verification" && <Spinner />}
