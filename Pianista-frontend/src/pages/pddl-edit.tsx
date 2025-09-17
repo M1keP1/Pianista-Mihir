@@ -909,12 +909,6 @@ const handleGeneratePlan = async () => {
                   size="xs"
                   aria-label="Domain editor mode"
                 />
-                <PillButton
-                  label=""
-                  ariaLabel="Render Mermaid"
-                  rightIcon={<span style={{ fontSize: 14, lineHeight: 1 }}>↵</span>}
-                  onClick={() => fetchMermaidFor(mermaidUiMode, /* force */ true)}
-                />
               </div>
             </div>
 
