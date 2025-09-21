@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import BrandLogo from "@/components/VS_BrandButton";
 import PillButton from "@/components/PillButton";
 import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
@@ -10,38 +9,61 @@ import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import { getPlan } from "@/api/pianista/getPlan";
 import { validatePlan } from "@/api/pianista/validatePlan";
 
-// STORE + ADAPTER (keep these)
-import { loadPlan, savePlanResult } from "@/lib/pddlStore";
+// STORE + ADAPTER
+import {
+  loadPlan,
+  savePlanResult,
+  loadPlanAdapted,
+  savePlanAdapted,
+  subscribePlanAdapted,
+} from "@/lib/pddlStore";
 import { adaptPlannerResponse, type PlanData } from "@/lib/plannerAdapter";
 
-// Gantt that accepts PlanData directly (no planTransform)
 import GanttLite from "@/components/gantt-lite";
-
-const MESSAGE_MIN_H = 40;
 
 export default function PlanPage() {
   const [params] = useSearchParams();
   const job = params.get("job")?.trim() || "";
 
-  // Visible textarea: ADAPTED plan.json (pretty)
+  // Visible JSON editor (adapted plan)
   const [planJsonText, setPlanJsonText] = useState<string>("");
 
-  // Hidden RAW planner text (for validate & persistence)
+  // RAW planner text (for fetch/validate/persist)
   const [rawPlan, setRawPlan] = useState<string>("");
 
-  const [view, setView] = useState<"raw" | "gantt">("raw");
+  const [view, setView] = useState<"raw" | "gantt">("gantt");
   const [status, setStatus] = useState<TextAreaStatus>("idle");
   const [msg, setMsg] = useState<string>("");
 
+  // Live sources for Gantt
+  const [planFromStore, setPlanFromStore] = useState<PlanData | null>(null);
+  const [planParsed, setPlanParsed] = useState<PlanData | null>(null);
+
+  // Debouncers + abort controller
+  const saveRawDeb = useRef<number | null>(null);
+  const saveJsonDeb = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Compute PlanData once from RAW
-  const planData: PlanData = useMemo(() => {
-    const adapted = adaptPlannerResponse(rawPlan || "");
-    // keep textarea synced (pretty JSON) whenever RAW changes
-    setPlanJsonText(JSON.stringify(adapted, null, 2));
-    return adapted;
+  // --- Compute PlanData from RAW (fallback source) ---
+  const planFromRaw: PlanData = useMemo(() => {
+    try {
+      return adaptPlannerResponse(rawPlan || "");
+    } catch {
+      return { plan: [], metrics: {} as any };
+    }
   }, [rawPlan]);
+
+  // Keep JSON editor synced when RAW changes (without clobbering user edits)
+  useEffect(() => {
+    const pretty = JSON.stringify(planFromRaw, null, 2);
+    setPlanJsonText((prev) => {
+      try {
+        const current = JSON.parse(prev);
+        if (JSON.stringify(current) === JSON.stringify(planFromRaw)) return prev;
+      } catch {}
+      return pretty;
+    });
+  }, [planFromRaw]);
 
   // One-shot fetch if not in store
   const fetchOnce = async () => {
@@ -56,70 +78,179 @@ export default function PlanPage() {
       if (statusText === "success") {
         const text = (res?.plan ?? res?.result_plan ?? "").trim?.() ?? "";
         if (!text) {
-          setStatus("error"); setMsg("Planner returned no plan text."); return;
+          setStatus("error");
+          setMsg("Planner returned no plan text.");
+          return;
         }
-        setRawPlan(text);                     // keep RAW
-        savePlanResult(job, text);            // persist RAW
-        setStatus("verified"); setMsg("Plan ready (adapted).");
+        setRawPlan(text); // update RAW → sync JSON via effect
+        savePlanResult(job, text); // persist RAW
+        try {
+          savePlanAdapted(job, adaptPlannerResponse(text));
+        } catch {}
+        setStatus("verified");
+        setMsg("Plan ready (adapted).");
         return;
       }
 
       if (statusText === "failed" || statusText === "error") {
-        setStatus("error"); setMsg(res?.message || "Planning failed."); return;
+        setStatus("error");
+        setMsg(res?.message || "Planning failed.");
+        return;
       }
 
       setStatus("error");
       setMsg("Plan is not ready yet. Please try again later.");
     } catch (e: any) {
-      setStatus("error"); setMsg(e?.message || "Network error. Please try again later.");
+      setStatus("error");
+      setMsg(e?.message || "Network error. Please try again later.");
     }
   };
 
+  // Initial load: store → fetch
   useEffect(() => {
     if (!job) {
-      setStatus("error"); setMsg("Missing plan job id. Generate a plan first.");
+      setStatus("error");
+      setMsg("Missing plan job id. Generate a plan first.");
       return;
     }
 
-    // fast path: store
-    const rec = loadPlan(job);
-    if (rec?.plan?.trim()) {
-      const text = rec.plan.trim();
-      setRawPlan(text);                       // triggers adapter + textarea sync
-      setStatus("verified"); setMsg("Plan ready (adapted).");
-      return;
-    }
+    // 1) Try adapted JSON from store
+    try {
+      const stored = loadPlanAdapted?.(job) as PlanData | null;
+      if (stored && stored.plan) {
+        setPlanFromStore(stored);
+        setPlanJsonText(JSON.stringify(stored, null, 2));
+      }
+    } catch {}
 
-    // otherwise fetch once
-    setStatus("ai-thinking"); setMsg("Fetching plan…");
-    fetchOnce();
+    // 2) Try RAW from store (still needed for validation & as fallback)
+    try {
+      const rec: any = loadPlan?.(job);
+      if (rec?.plan?.trim()) {
+        const text = rec.plan.trim();
+        setRawPlan(text);
+        setStatus("verified");
+        setMsg("Plan ready (adapted).");
+      } else {
+        setStatus("ai-thinking");
+        setMsg("Fetching plan…");
+        fetchOnce();
+      }
+    } catch {
+      setStatus("ai-thinking");
+      setMsg("Fetching plan…");
+      fetchOnce();
+    }
 
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job]);
 
+  // Subscribe to adapted-plan store updates (cross-tab / other components)
+  useEffect(() => {
+    if (!job) return;
+    const unsub = subscribePlanAdapted?.(job, (pd: any) => {
+      if (!pd) return;
+      setPlanFromStore(pd as PlanData);
+      // keep JSON editor in sync unless it already matches
+      setPlanJsonText((prev) => {
+        try {
+          const cur = JSON.parse(prev);
+          if (JSON.stringify(cur) === JSON.stringify(pd)) return prev;
+        } catch {}
+        return JSON.stringify(pd, null, 2);
+      });
+    });
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
+  }, [job]);
+
+  // Persist RAW + its adapted form (debounced) whenever RAW changes
+  useEffect(() => {
+    if (!job) return;
+    if (saveRawDeb.current) window.clearTimeout(saveRawDeb.current);
+    saveRawDeb.current = window.setTimeout(() => {
+      try {
+        savePlanResult?.(job, rawPlan);
+      } catch {}
+      try {
+        savePlanAdapted?.(job, planFromRaw as any);
+      } catch {}
+    }, 250) as unknown as number;
+    return () => {
+      if (saveRawDeb.current) {
+        window.clearTimeout(saveRawDeb.current);
+        saveRawDeb.current = null;
+      }
+    };
+  }, [job, rawPlan, planFromRaw]);
+
+  // Live-parse JSON editor; persist adapted (debounced)
+  useEffect(() => {
+    if (!job) return;
+    try {
+      const obj = JSON.parse(planJsonText);
+      if (obj && Array.isArray(obj.plan)) {
+        setPlanParsed(obj);
+        if (saveJsonDeb.current) window.clearTimeout(saveJsonDeb.current);
+        saveJsonDeb.current = window.setTimeout(() => {
+          try {
+            savePlanAdapted?.(job, obj);
+          } catch {}
+        }, 300) as unknown as number;
+      }
+    } catch {
+      // ignore invalid JSON while typing
+    }
+    return () => {
+      if (saveJsonDeb.current) {
+        window.clearTimeout(saveJsonDeb.current);
+        saveJsonDeb.current = null;
+      }
+    };
+  }, [planJsonText, job]);
+
+  // Source-of-truth preference for Gantt
+  const planForGantt: PlanData = useMemo(() => {
+    return planFromStore ?? planParsed ?? planFromRaw;
+  }, [planFromStore, planParsed, planFromRaw]);
+
   // Validate using RAW (not the adapted JSON)
   const validateNow = async () => {
     const current = rawPlan.trim();
-    if (!current) { setStatus("error"); setMsg("Plan is empty."); return; }
+    if (!current) {
+      setStatus("error");
+      setMsg("Plan is empty.");
+      return;
+    }
 
     const rec = loadPlan(job);
     const domain = rec?.domain?.trim() || "";
     const problem = rec?.problem?.trim() || "";
-    if (!domain || !problem) { setStatus("error"); setMsg("Missing domain/problem for validation."); return; }
+    if (!domain || !problem) {
+      setStatus("error");
+      setMsg("Missing domain/problem for validation.");
+      return;
+    }
 
-    setStatus("verification"); setMsg("Validating plan…");
-    const ctrl = new AbortController(); abortRef.current = ctrl;
+    setStatus("verification");
+    setMsg("Validating plan…");
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     try {
       const res = await validatePlan(domain, problem, current, ctrl.signal);
-      if (res.result === "success") {
-        setStatus("verified"); setMsg(res.message || "Plan is valid.");
+      if ((res as any).result === "success") {
+        setStatus("verified");
+        setMsg((res as any).message || "Plan is valid.");
         savePlanResult(job, current); // persist RAW
       } else {
-        setStatus("error"); setMsg(res.message || "Plan is NOT valid.");
+        setStatus("error");
+        setMsg((res as any).message || "Plan is NOT valid.");
       }
     } catch (e: any) {
-      setStatus("error"); setMsg(e?.message || "Validation failed.");
+      setStatus("error");
+      setMsg(e?.message || "Validation failed.");
     }
   };
 
@@ -137,15 +268,19 @@ export default function PlanPage() {
         placeItems: "center",
         background: "var(--color-bg)",
         color: "var(--color-text)",
-        padding: "1rem",
-        paddingBottom: "72px",
+        padding: "12px 12px 84px 12px", // extra bottom padding for fixed footer
       }}
     >
-      <BrandLogo />
+          <style>{`
+      /* Force the Raw editor to fully fill its container */
+      .raw-fill-abs { position: relative; flex: 1; min-height: 0; }
+      .raw-fill-abs > .abs { position: absolute; inset: 0; display: flex; }
+      .raw-fill-abs textarea { height: 100% !important; }
+    `}</style>
 
-      {/* Content */}
-      <div style={{ display: "grid", gap: "1rem", width: "min(1160px, 92vw)" }}>
-        {/* Plan Container - matches PDDL edit page structure */}
+      {/* Content (wider & taller than before) */}
+      <div style={{ display: "grid", gap: "12px", width: "min(1400px, 96vw)" }}>
+        {/* Plan Container */}
         <section
           style={{
             background: "var(--color-surface)",
@@ -156,7 +291,7 @@ export default function PlanPage() {
             overflow: "hidden",
           }}
         >
-          {/* Header - same structure as domain/problem containers */}
+          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -164,23 +299,33 @@ export default function PlanPage() {
               justifyContent: "space-between",
               padding: "8px 10px",
               borderBottom: "1px solid var(--color-border-muted)",
-              background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
+              background:
+                "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
             }}
           >
+            {/* Title (left) */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span 
-                aria-hidden 
-                style={{ 
-                  width: 10, 
-                  height: 10, 
-                  borderRadius: 999, 
-                  background: "color-mix(in srgb, var(--color-accent) 70%, #8b5cf6)" 
-                }} 
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background:
+                    "color-mix(in srgb, var(--color-accent) 70%, #8b5cf6)",
+                }}
               />
               <strong>Plan Viewer</strong>
             </div>
 
+            {/* Controls (right) — Validate on LEFT of slider, and always rendered */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <PillButton
+                onClick={validateNow}
+                label="Validate"
+                ariaLabel="Validate current plan"
+                disabled={!rawPlan.trim() || view !== "raw"}
+              />
               <ModeSlider<"raw" | "gantt">
                 value={view}
                 onChange={setView}
@@ -191,89 +336,126 @@ export default function PlanPage() {
                 size="xs"
                 aria-label="Plan view mode"
               />
-{view === "raw" && (
-                <PillButton 
-                  onClick={validateNow} 
-                  label="Validate" 
-                  ariaLabel="Validate current plan"
-                  disabled={!rawPlan.trim()}
-                />
-              )}
             </div>
           </div>
 
-
-
-          {/* Content Body */}
-          <div style={{ position: "relative", padding: 10, minHeight: "400px" }}>
-            {/* RAW tab shows ADAPTED plan.json */}
-            {view === "raw" && (
-              <Textarea
-                value={planJsonText}
-                onChange={setPlanJsonText}
-                onSubmit={validateNow}
-                placeholder="Waiting for plan…"
-                height="55vh"
-                autoResize={false}
-                showStatusPill
-                status={status}
-                statusPillPlacement="top-right"
-                statusHint={msg || undefined}
+          {/* Body */}
+          <div style={{ position: "relative", padding: 10, minHeight: 520 }}>
+          {view === "raw" && (
+            <div style={{
+              height: "70vh",
+              minHeight: 520,
+              border: "1px solid var(--color-border-muted)",
+              borderRadius: 10,
+              background: "var(--color-surface)",
+              boxShadow: "0 1px 4px var(--color-shadow) inset",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              {/* absolute-fill layer so the editor hugs the box exactly like Gantt/Mermaid */}
+              <div className="raw-fill-abs">
+                <div className="abs">
+                  <Textarea
+                    value={planJsonText}
+                    onChange={setPlanJsonText}
+                    onSubmit={validateNow}
+                    placeholder="Waiting for plan…"
+                    autoResize={false}
+                    showStatusPill
+                    status={status}
+                    statusPillPlacement="top-right"
+                    statusHint={msg || undefined}
+                    /* make the component root stretch */
+                    style={{
+                      flex: 1,
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                      borderRadius: 0,
+                      outline: "none",
+                      background: "transparent",
+                      padding: 12,       // keep typing comfort
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+            {/* Gantt tab renders from the freshest source — taller now */}
+            {view === "gantt" && (planForGantt?.plan?.length ?? 0) > 0 && (
+              <div
+                style={{
+                  height: "70vh",
+                  minHeight: 520,
+                  border: "1px solid var(--color-border-muted)",
+                  borderRadius: "10px",
+                  background: "var(--color-surface)",
+                  boxShadow: "0 1px 4px var(--color-shadow) inset",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+              <GanttLite
+                planData={planForGantt}
+                timeUnit="hour"
+                boxed={false}
+                laneColumnWidth={220}
+                rowHeight={28}
+                pxPerUnitInitial={80}
               />
-            )}
 
-            {/* Gantt tab renders directly from PlanData */}
-            {view === "gantt" && rawPlan.trim() && (
-              <div style={{ 
-                height: "55vh",
-                minHeight: "400px",
-                border: "1px solid var(--color-border-muted)",
-                borderRadius: "10px",
-                background: "var(--color-surface)",
-                boxShadow: "0 1px 4px var(--color-shadow) inset",
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column"
-              }}>
-                <GanttLite
-                  planData={planData}
-                  timeUnit="hour"
-                  boxed={false}
-                  laneColumnWidth={220}
-                  rowHeight={28}
-                  pxPerUnitInitial={80}
-                  height={400}
-                />
               </div>
             )}
 
             {/* Empty state for gantt when no plan */}
-            {view === "gantt" && !rawPlan.trim() && (
-              <div style={{
-                height: "55vh",
-                minHeight: "400px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-text-secondary)",
-                fontSize: "0.9rem"
-              }}>
+            {view === "gantt" && !((planForGantt?.plan?.length ?? 0) > 0) && (
+              <div
+                style={{
+                  height: "70vh",
+                  minHeight: 520,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-text-secondary)",
+                  fontSize: "0.9rem",
+                }}
+              >
                 No plan data available for timeline view
               </div>
             )}
 
-            <div className="field-hint">
-              {view === "raw" 
-                ? "Hint: This shows the adapted JSON structure from the raw planner output." 
-                : "Hint: Timeline visualization of plan execution across different agents/satellites."
-              }
+            <div className="field-hint" style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
+              {view === "raw"
+                ? "Hint: This shows the adapted JSON structure from the raw planner output. Edits here update the Gantt and are saved."
+                : "Hint: Timeline visualization of plan execution across different agents/satellites."}
             </div>
           </div>
         </section>
 
-        {/* Spacer for fixed footer */}
-        <div aria-hidden style={{ height: 56 }} />
+        {/* Spacer under content (footer is fixed) */}
+        <div aria-hidden style={{ height: 8 }} />
       </div>
+
+      {/* Fixed Footer with left-aligned Back button */}
+        <div
+          style={{
+            width: "min(1400px, 96vw)",
+            margin: "0 auto",
+            padding: "0 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <PillButton
+            to={backToEditor}
+            ariaLabel="Back to PDDL editor"
+            label="Back to PDDL"
+            leftIcon={<span aria-hidden>←</span>}
+          />
+        </div>
     </main>
   );
 }

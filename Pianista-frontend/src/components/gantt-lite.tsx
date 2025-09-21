@@ -195,6 +195,27 @@ const GanttLite: React.FC<GanttLiteProps> = ({
     ? { borderTop: "1px solid var(--color-border-muted)", background: "var(--color-surface-bridge)" }
     : { borderTop: "none", background: "transparent" };
 
+    const lanesRef = useRef<HTMLDivElement>(null);
+
+    const syncingRef = useRef(false);
+
+    const onTimelineScroll = () => {
+    const r = scrollRef.current, l = lanesRef.current;
+    if (!r || !l || syncingRef.current) return;
+    syncingRef.current = true;
+    l.scrollTop = r.scrollTop;
+    requestAnimationFrame(() => (syncingRef.current = false));
+    };
+
+    const onLanesScroll = () => {
+    const r = scrollRef.current, l = lanesRef.current;
+    if (!r || !l || syncingRef.current) return;
+    syncingRef.current = true;
+    r.scrollTop = l.scrollTop;
+    requestAnimationFrame(() => (syncingRef.current = false));
+    };
+
+
   return (
     <div
       className={className}
@@ -229,9 +250,12 @@ const GanttLite: React.FC<GanttLiteProps> = ({
       <div style={{ display: "grid", gridTemplateColumns: `${laneColumnWidth}px 1fr`, minHeight: 0, flex: 1 }}>
         {/* LHS lanes (rails aligned to timeline) */}
         <div
-          data-themed-scroll
-          style={{ overflow: "auto", borderRight: "1px solid var(--color-border-muted)", background: "transparent", minHeight: 0 }}
+        ref={lanesRef}
+        onScroll={onLanesScroll}
+        data-themed-scroll
+        style={{ overflowY: "auto", overflowX: "hidden", borderRight: "1px solid var(--color-border-muted)", background: "transparent", minHeight: 0 }}
         >
+
           {showRuler && <div style={{ height: 36 }} />} {/* ruler spacer */}
           {processed.lanes.map((lane) => {
             const laneTotalH = HEADER_SPACER + lane.maxRows * rowHeight;
@@ -273,11 +297,13 @@ transform: "translateY(-50%)",
 
         {/* Timeline */}
         <div
-          ref={scrollRef}
-          onWheel={onWheel}
-          data-themed-scroll
-          style={{ position: "relative", overflow: "auto", background: "transparent", minHeight: 0, contain: "layout paint" }}
+        ref={scrollRef}
+        onWheel={onWheel}
+        onScroll={onTimelineScroll}
+        data-themed-scroll
+        style={{ position: "relative", overflow: "auto", background: "transparent", minHeight: 0, contain: "layout paint" }}
         >
+
           {/* Ruler */}
           {showRuler && (
             <div style={{ position: "sticky", top: 0, zIndex: 3, ...headerStyle }}>
