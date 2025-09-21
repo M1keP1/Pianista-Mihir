@@ -31,7 +31,7 @@ const PianistaFooter: React.FC = () => {
 
   React.useEffect(() => {
     check();                   // initial ping
-    const id = setInterval(check, 60000); // ping every 60s
+    const id = setInterval(check, 1000000000); // ping every 60s
     return () => clearInterval(id);
   }, [check]);
 

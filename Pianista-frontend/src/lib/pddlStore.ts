@@ -223,3 +223,62 @@ export function clearAllPlans() {
 export function jobBackLink(jobId?: string) {
   return jobId ? `/pddl-edit?job=${encodeURIComponent(jobId)}` : "/pddl-edit";
 }
+
+/* === Plan Adapted (JSON used by Gantt) — additive, safe to append === */
+type StorePlanData = { plan: any[]; metrics?: any };
+
+const LS_ADAPTED = "pianista:planAdapted:v1";
+const _adaptedListeners = new Map<string, Set<(pd: StorePlanData | null) => void>>();
+let _adaptedStorageHooked = false;
+
+function _readAdaptedAll(): Record<string, StorePlanData> {
+  try { return JSON.parse(localStorage.getItem(LS_ADAPTED) || "{}"); } catch { return {}; }
+}
+function _writeAdaptedAll(obj: Record<string, StorePlanData>) {
+  try { localStorage.setItem(LS_ADAPTED, JSON.stringify(obj)); } catch {}
+}
+function _emitAdapted(jobId: string, pd: StorePlanData | null) {
+  const set = _adaptedListeners.get(jobId);
+  if (!set) return;
+  set.forEach(fn => { try { fn(pd); } catch {} });
+}
+function _hookStorage() {
+  if (_adaptedStorageHooked) return;
+  try {
+    window.addEventListener("storage", (e) => {
+      if (e.key !== LS_ADAPTED) return;
+      const all = _readAdaptedAll();
+      for (const [jobId, set] of _adaptedListeners.entries()) {
+        const pd = all[jobId] ?? null;
+        set.forEach(fn => { try { fn(pd); } catch {} });
+      }
+    });
+    _adaptedStorageHooked = true;
+  } catch {}
+}
+
+/** Load adapted plan JSON for a job (or null). */
+export function loadPlanAdapted(jobId: string): StorePlanData | null {
+  const all = _readAdaptedAll();
+  return all[jobId] ?? null;
+}
+
+/** Save adapted plan JSON for a job and notify subscribers. */
+export function savePlanAdapted(jobId: string, plan: StorePlanData) {
+  if (!jobId) return;
+  const all = _readAdaptedAll();
+  all[jobId] = plan;
+  _writeAdaptedAll(all);
+  _emitAdapted(jobId, plan);
+}
+
+/** Subscribe to adapted plan changes for a job. Returns an unsubscribe. */
+export function subscribePlanAdapted(jobId: string, cb: (pd: StorePlanData | null) => void) {
+  if (!jobId || typeof cb !== "function") return () => {};
+  if (!_adaptedListeners.has(jobId)) _adaptedListeners.set(jobId, new Set());
+  _adaptedListeners.get(jobId)!.add(cb);
+  _hookStorage();
+  // fire immediately with current value
+  try { cb(loadPlanAdapted(jobId)); } catch {}
+  return () => { _adaptedListeners.get(jobId)!.delete(cb); };
+}
