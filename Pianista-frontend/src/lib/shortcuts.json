@@ -1,4 +1,4 @@
 [
-  { "id": "sat-gs", "name": "sat-gs-coverage", "text": "Generate me a domain and problem for Ground Station Coverage." },
-  { "id": "log-wag","name": "wagon-boxes", "text": "Generate me a domain and problem for Logistics,we have wagons, boxes and warehouses." }
+  { "id": "sat-gs", "name": "sat-gs-coverage", "text": "Generate me a domain and problem for Ground Station Coverage" },
+  { "id": "log-wag","name": "wagon-boxes", "text": "Generate me a domain and problem for logistics we have wagons, boxes and warehouses" }
 ]

@@ -27,6 +27,11 @@ html, body {
   --color-shadow: rgba(0, 0, 0, 0.5);
   --color-star: #e6eaf2;               /* if you still use stars */
   --color-surface-bridge: color-mix(in srgb, var(--color-bg) 85%, white 15%);
+    --tooltip-bg: rgba(20,20,20,.95);
+  --tooltip-fg: #fff;
+  --tooltip-border: rgba(255,255,255,.15);
+  --tooltip-shadow: rgba(0,0,0,.5);
+
 }
 
 /* Light — airy with same accent for brand consistency */
@@ -40,6 +45,11 @@ html, body {
   --color-shadow: rgba(0, 0, 0, 0.08);
   --color-star: #2d3748;
   --color-surface-bridge: color-mix(in srgb, var(--color-bg) 88%, black 12%);
+    --tooltip-bg: rgba(255,255,255,.98);
+  --tooltip-fg: #0b0f14;
+  --tooltip-border: rgba(0,0,0,.18);
+  --tooltip-shadow: rgba(0,0,0,.18);
+
 }
 
 /* --- add near the top with other :root tokens --- */
