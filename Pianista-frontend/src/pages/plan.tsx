@@ -1,5 +1,5 @@
 // src/pages/plan.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import PillButton from "@/components/PillButton";
