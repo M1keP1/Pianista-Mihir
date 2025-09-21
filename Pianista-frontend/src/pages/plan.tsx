@@ -31,7 +31,7 @@ export default function PlanPage() {
   // RAW planner text (for fetch/validate/persist)
   const [rawPlan, setRawPlan] = useState<string>("");
 
-  const [view, setView] = useState<"raw" | "gantt">("gantt");
+  const [view, setView] = useState<"raw" | "json" | "gantt">("gantt");
   const [status, setStatus] = useState<TextAreaStatus>("idle");
   const [msg, setMsg] = useState<string>("");
 
@@ -276,7 +276,9 @@ export default function PlanPage() {
       .raw-fill-abs { position: relative; flex: 1; min-height: 0; }
       .raw-fill-abs > .abs { position: absolute; inset: 0; display: flex; }
       .raw-fill-abs textarea { height: 100% !important; }
-    `}</style>
+      `}</style>
+
+
 
       {/* Content (wider & taller than before) */}
       <div style={{ display: "grid", gap: "12px", width: "min(1400px, 96vw)" }}>
@@ -318,25 +320,28 @@ export default function PlanPage() {
               <strong>Plan Viewer</strong>
             </div>
 
-            {/* Controls (right) — Validate on LEFT of slider, and always rendered */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <PillButton
-                onClick={validateNow}
-                label="Validate"
-                ariaLabel="Validate current plan"
-                disabled={!rawPlan.trim() || view !== "raw"}
-              />
-              <ModeSlider<"raw" | "gantt">
+              {view === "raw" && (
+                <PillButton
+                  onClick={validateNow}
+                  label="Validate"
+                  ariaLabel="Validate current plan"
+                  disabled={!rawPlan.trim()}
+                />
+              )}
+              <ModeSlider<"raw" | "json" | "gantt">
                 value={view}
                 onChange={setView}
                 modes={[
-                  { key: "raw", short: "Raw", full: "Raw JSON Plan" },
+                  { key: "raw",  short: "Raw",  full: "Planner Response (RAW)" },
+                  { key: "json", short: "JSON", full: "Adapted Plan (JSON)" },
                   { key: "gantt", short: "Gantt", full: "Gantt Timeline" },
                 ]}
                 size="xs"
                 aria-label="Plan view mode"
               />
             </div>
+
           </div>
 
           {/* Body */}
@@ -353,20 +358,20 @@ export default function PlanPage() {
               display: "flex",
               flexDirection: "column"
             }}>
-              {/* absolute-fill layer so the editor hugs the box exactly like Gantt/Mermaid */}
               <div className="raw-fill-abs">
                 <div className="abs">
                   <Textarea
-                    value={planJsonText}
-                    onChange={setPlanJsonText}
+                    value={rawPlan}                 // ← RESPONSE here
+                    onChange={setRawPlan}
                     onSubmit={validateNow}
-                    placeholder="Waiting for plan…"
+                    placeholder="Fast Downward SequentialPlan:\n    communicate(s1, gs1)\n    ..."
                     autoResize={false}
+                    height="100%"
                     showStatusPill
+                    data-themed-scroll 
                     status={status}
                     statusPillPlacement="top-right"
                     statusHint={msg || undefined}
-                    /* make the component root stretch */
                     style={{
                       flex: 1,
                       width: "100%",
@@ -374,14 +379,59 @@ export default function PlanPage() {
                       border: "none",
                       borderRadius: 0,
                       outline: "none",
+                      overflow: "auto",
                       background: "transparent",
-                      padding: 12,       // keep typing comfort
+                      padding: 12,
+                      fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)"
                     }}
                   />
                 </div>
               </div>
             </div>
           )}
+          {view === "json" && (
+          <div style={{
+            height: "70vh",
+            minHeight: 520,
+            border: "1px solid var(--color-border-muted)",
+            borderRadius: 10,
+            background: "var(--color-surface)",
+            boxShadow: "0 1px 4px var(--color-shadow) inset",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column"
+          }}>
+            <div className="raw-fill-abs">
+              <div className="abs">
+                <Textarea
+                  value={planJsonText}            // ← ADAPTED JSON here
+                  onChange={setPlanJsonText}
+                  onSubmit={validateNow}
+                  placeholder='{"plan":[{"action":"communicate","args":["s1","gs1"],"start":0,"duration":2}], "metrics":{}}'
+                  autoResize={false}
+                  showStatusPill
+                  status={status}
+                  data-themed-scroll 
+                  statusPillPlacement="top-right"
+                  statusHint={msg || undefined}
+                  style={{
+                    flex: 1,
+                    width: "100%",
+                    height: "100%",
+                    border: "none",
+                    borderRadius: 0,
+                    outline: "none",
+                    overflow: "auto",
+                    background: "transparent",
+                    padding: 12,
+                    fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)"
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
             {/* Gantt tab renders from the freshest source — taller now */}
             {view === "gantt" && (planForGantt?.plan?.length ?? 0) > 0 && (
               <div
@@ -426,11 +476,12 @@ export default function PlanPage() {
               </div>
             )}
 
-            <div className="field-hint" style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
-              {view === "raw"
-                ? "Hint: This shows the adapted JSON structure from the raw planner output. Edits here update the Gantt and are saved."
-                : "Hint: Timeline visualization of plan execution across different agents/satellites."}
-            </div>
+          <div className="field-hint" style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
+            {view === "raw"  && "Hint: Planner response (RAW). Editing this updates the adapted JSON and Gantt."}
+            {view === "json" && "Hint: Adapted Plan (JSON). Editing this updates the Gantt and persists."}
+            {view === "gantt" && "Hint: Timeline visualization of plan execution across different agents/satellites."}
+          </div>
+
           </div>
         </section>
 
