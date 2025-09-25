@@ -410,3 +410,7 @@ section[data-busy-glow="true"] {
 @media (max-width: 560px) {
   .reset-slot { width: 40px; flex-basis: 40px; }
 }
+
+.icon-accent {
+  color: var(--color-accent);
+}

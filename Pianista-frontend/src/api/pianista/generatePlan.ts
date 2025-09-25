@@ -8,9 +8,13 @@ const KEY  = import.meta.env.VITE_PIANISTA_KEY;
 export async function generatePlan(
   domain: string,
   problem: string,
-  opts: { convert_real_types?: boolean; signal?: AbortSignal } = {}
+  opts: {
+    convert_real_types?: boolean;
+    planner?: string;            //optional planner id (e.g. "fd", "enhsp")
+    signal?: AbortSignal;
+  } = {}
 ): Promise<GeneratePlanResponse> {
-  const { convert_real_types = true, signal } = opts;
+  const { convert_real_types = true, planner, signal } = opts;
 
   if (!BASE) throw new Error("Planner base URL missing (VITE_PIANISTA_BASE).");
   if (!KEY)  throw new Error("Planner API key missing (VITE_PIANISTA_KEY).");
@@ -27,7 +31,10 @@ export async function generatePlan(
         "Cache-Control": "no-cache",
         "Ocp-Apim-Subscription-Key": KEY,
       },
-      body: JSON.stringify({ domain, problem }),
+      // Only include `planner` if caller set it; backend defaults to auto otherwise
+      body: JSON.stringify(
+        planner ? { domain, problem, planner } : { domain, problem }
+      ),
       signal,
     }
   );
