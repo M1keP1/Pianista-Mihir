@@ -178,7 +178,7 @@ export default function PlannerDropup({
                 background: active
                   ? "color-mix(in srgb, var(--color-accent) 22%, transparent)"
                   : "transparent",
-                color: 'var(--color-accent)',
+                color: 'var(--color-text)',
                 cursor: "pointer",
                 fontFamily: "monospace",
                 fontWeight: active ? 700 : 500,
