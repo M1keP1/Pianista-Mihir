@@ -7,6 +7,7 @@ import PillButton from "@/components/PillButton";
 import Textarea, { type TextAreaStatus, type TextareaHandle } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/components/MermaidPanel";
+import PlannerDropup from "@/components/plannerDropup";
 
 import {
   loadPddl,
@@ -31,7 +32,7 @@ import Check from "@/components/icons/Check";
 import Reload from "@/components/icons/Reload";
 
 import { useTwoModeAutoDetect, type TwoMode } from "@/hooks/useTwoModeAutoDetect";
-import PlannerDropup from "@/components/plannerDropup";
+
 
 /* -------------------------------------------------------------------------- */
 
