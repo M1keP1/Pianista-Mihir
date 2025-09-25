@@ -31,6 +31,7 @@ import Check from "@/components/icons/Check";
 import Reload from "@/components/icons/Reload";
 
 import { useTwoModeAutoDetect, type TwoMode } from "@/hooks/useTwoModeAutoDetect";
+import PlannerDropup from "@/components/plannerDropup";
 
 /* -------------------------------------------------------------------------- */
 
@@ -580,6 +581,7 @@ export default function PddlEditPage() {
       }
     }, 2500);
   };
+
 const ensureValidDomain = async (dText: string): Promise<{ ok: boolean; text: string }> => {
   const d = dText.trim();
   if (!d) return { ok: false, text: "" };
@@ -669,6 +671,10 @@ const ensureValidProblem = async (pText: string, dText: string): Promise<{ ok: b
   }
 };
 
+const [selectedPlanner, setSelectedPlanner] = useState<string>(() => {
+  try { return localStorage.getItem("pddl.selectedPlanner") || "auto"; } catch { return "auto"; }
+});
+
 const handleGeneratePlan = async () => {
   if (!canGenerate || planPhase === "submitting" || planPhase === "polling") return;
   setPlanPhase("submitting");
@@ -687,7 +693,12 @@ const handleGeneratePlan = async () => {
     setGenLabel("Generating…");
     savePddlSnapshot(d, p);
     if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem: p });
-    const { id } = await generatePlan(d, p, { convert_real_types: true });
+    const opts: any = { convert_real_types: true };
+    if (selectedPlanner && selectedPlanner !== "auto") {
+      opts.planner = selectedPlanner;
+    }
+    const { id } = await generatePlan(d, p, opts);
+
     savePlanJob(id, d, p);
     startPolling(id);
   } catch (e: any) {
@@ -767,11 +778,16 @@ const handleGeneratePlan = async () => {
             />
           )}
 
+          <PlannerDropup
+            value={selectedPlanner}
+            onChange={setSelectedPlanner}
+          />
+
           {/* Generate (uses your original glow-pulse while busy) */}
           {planPhase === "success" ? (
             <PillButton
               to={`/plan?job=${encodeURIComponent(planId)}`}
-              label="See Plan"
+              label=" See Plan  "
               rightIcon={<Check />}
               ariaLabel="See generated plan"
             />
@@ -797,15 +813,18 @@ const handleGeneratePlan = async () => {
               />
             </div>
           )}
-
           {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
           <div className="reset-slot">
             {planPhase === "success" && (
               <PillButton
                 onClick={handleRegenerate}
-                label=""
-                rightIcon={<Reload />}
+                iconOnly
+                rightIcon={<Reload className="icon-accent"/>}
                 ariaLabel="Clear Plan"
+                style={{
+                    width: 30,
+                    height: 30,
+                }}
               />
             )}
           </div>
@@ -953,7 +972,6 @@ const handleGeneratePlan = async () => {
               background: "var(--color-surface)",
               border: "1px solid var(--color-border-muted)",
               borderRadius: 12,
-              padding: 0,                      // ⬅ like MermaidPanel
               boxShadow: "0 1.5px 10px var(--color-shadow)",
               overflow: "hidden",              // ⬅ like MermaidPanel
             }}
