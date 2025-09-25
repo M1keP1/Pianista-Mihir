@@ -7,7 +7,7 @@ import PillButton from "@/components/PillButton";
 import Textarea, { type TextAreaStatus, type TextareaHandle } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/components/MermaidPanel";
-import PlannerDropup from "../components/plannerDropup";
+import PlannerDropup from "../components/PlannerDropup";
 
 import {
   loadPddl,
