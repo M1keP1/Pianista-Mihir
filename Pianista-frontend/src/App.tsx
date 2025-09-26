@@ -7,7 +7,7 @@ import ChatPage from "./pages/chat";
 import PddlEditPage from "./pages/pddl-edit";
 import { Toaster } from "react-hot-toast";
 import PlanPage from "./pages/plan";
-import MiniZincPage from "./pages/miniZinc";
+import MiniZincPage from "./pages/minizinc";
 
 
 export default function App() {
