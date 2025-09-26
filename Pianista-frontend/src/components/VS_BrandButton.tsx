@@ -23,9 +23,14 @@ const BrandLogo: React.FC<Props> = ({ size = 90, style, className }) => {
 
   const handleClick = (e: React.MouseEvent) => {
     // On the PDDL editor page: go back to chat in the same tab
-    if (pathname.startsWith("/pddl-edit")) {
+    if (pathname.startsWith("/pddl-edit") || pathname.startsWith("/minizinc")) {
       e.preventDefault();
       navigate("/chat");
+      return;
+    }
+    if (pathname.startsWith("/chat")) {
+      e.preventDefault();
+      navigate("/");
       return;
     }
     // Everywhere else (e.g., /chat): open the website

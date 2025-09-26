@@ -90,6 +90,16 @@ const ChatPage: React.FC = () => {
   const [mmStatus, setMmStatus] = React.useState<"idle" | "verification" | "error">("idle");
   const [aiStatus, setAiStatus] = React.useState<"idle" | "ai-thinking" | "error">("idle");
 
+  const [mmMsg, setMmMsg] = React.useState<string>("");
+  const [aiMsg, setAiMsg] = React.useState<string>("");
+
+  const resetPillStatuses = () => {
+    setMmStatus("idle");
+    setAiStatus("idle");
+    setMmMsg("");
+    setAiMsg("");
+  };
+
   // Track saving the very first user input
   const firstSavedRef = React.useRef(false);
 
@@ -142,14 +152,17 @@ const ChatPage: React.FC = () => {
         const res = await convertMermaid(payload, 1);
         if (res.result_status !== "success" || !res.conversion_result) {
           setMmStatus("error");
+          setMmMsg(res?.message || "Mermaid conversion failed.");
           return;
         }
         const converted = res.conversion_result.trim();
         setOutput(converted);
         persistIfPddl(converted); // store domain/problem if present
         setMmStatus("idle");
+        setMmMsg(""); 
       } catch {
         setMmStatus("error");
+        setMmMsg("Mermaid conversion failed.");
       }
       return;
     }
@@ -159,11 +172,12 @@ const ChatPage: React.FC = () => {
       setAiStatus("ai-thinking");
       try {
         const res = await generateDomainFromNL(payload, {
-          attempts: 1,
+          attempts: 3,
           generate_both: true, // ← important
         });
         if (res.result_status !== "success" || !res.generated_domain) {
           setAiStatus("error");
+          setAiMsg(res?.message || "Domain generation failed.");
           return;
         }
         const domain = res.generated_domain?.trim() ?? "";
@@ -173,8 +187,10 @@ const ChatPage: React.FC = () => {
         setOutput(combined);
         persistIfPddl(combined); // store generated domain/problem
         setAiStatus("idle");
-      } catch {
+        setAiMsg("");
+      } catch(e: any) {
         setAiStatus("error");
+        setAiMsg(e?.message || "Domain generation failed."); 
       }
       return;
     }
@@ -418,7 +434,6 @@ function insertShortcutText(text: string) {
           <Textarea
             ref={textareaRef as any}
             value={output}
-            onChange={setOutput}
             onKeyDown={onKeyDown}
             onSubmit={submit}
             placeholder={getPlaceholder()}
@@ -427,12 +442,25 @@ function insertShortcutText(text: string) {
             width="100%"
             maxWidth={900}
             showStatusPill
+            onChange={(next) => {
+              setOutput(next);
+              if (next.trim() === "") {
+                resetPillStatuses();     // ← when cleared, go back to idle + clear messages
+              }
+            }}
             status={
               mmStatus !== "idle"
                 ? mmStatus
                 : aiStatus !== "idle"
                 ? aiStatus
                 : "idle"
+            }
+              statusHint={
+              mmStatus !== "idle"
+                ? (mmStatus === "error" ? mmMsg : mmStatus === "verification" ? "Converting…" : undefined)
+                : aiStatus !== "idle"
+                ? (aiStatus === "error" ? aiMsg : aiStatus === "ai-thinking" ? "Thinking…" : undefined)
+                : undefined
             }
           />
 
@@ -480,6 +508,24 @@ function insertShortcutText(text: string) {
         onClose={() => setShowCreate(false)}
         onCreate={addShortcut}
       />
+
+      {/* Floating “Go to Solver” button (bottom-right) */}
+      <div
+        style={{
+          position: "fixed",
+          left: "45%", 
+          right: 100,
+          bottom: 10,
+          zIndex: 40,
+        }}
+      >
+        <PillButton
+          to="/minizinc"
+          ariaLabel="Go to MiniZinc Solver"
+          label="Go to Solver"
+        />
+      </div>
+
     </main>
   );
 };

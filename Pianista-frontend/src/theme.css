@@ -414,3 +414,29 @@ section[data-busy-glow="true"] {
 .icon-accent {
   color: var(--color-accent);
 }
+
+/* Reusable glow driven by --color-accent */
+@keyframes glowPulse {
+  0%   { box-shadow: 0 0 0 0   var(--glow-color, color-mix(in srgb, var(--color-accent) 36%, transparent)); }
+  50%  { box-shadow: 0 0 0 6px var(--glow-soft,  color-mix(in srgb, var(--color-accent) 18%, transparent)); }
+  100% { box-shadow: 0 0 0 0   var(--glow-color, color-mix(in srgb, var(--color-accent) 36%, transparent)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-pulse { animation: none !important; }
+}
+.glow-pulse {
+  border-radius: 999px;
+  animation: glowPulse 1.4s ease-in-out infinite;
+}
+
+/* (Optional) tweak per theme if you have light/dark tokens */
+.theme-dark .glow-pulse {
+  --glow-color: color-mix(in srgb, var(--color-accent) 42%, transparent);
+  --glow-soft:  color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+/* Utility: force-disable glow/box-shadows inside this container */
+.no-glow,
+.no-glow * {
+  box-shadow: none !important;
+}

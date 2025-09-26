@@ -7,6 +7,7 @@ import ChatPage from "./pages/chat";
 import PddlEditPage from "./pages/pddl-edit";
 import { Toaster } from "react-hot-toast";
 import PlanPage from "./pages/plan";
+import MiniZincPage from "./pages/minizinc";
 
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/chat" element={<ChatPage />} />
       <Route path="/pddl-edit" element={<PddlEditPage/>} /> 
       <Route path="/plan" element={<PlanPage/>} />
+      <Route path="/minizinc" element={<MiniZincPage />} />
     </Routes>
     <ThemeSwitcherFab/>
     <PianistaFooter/>
