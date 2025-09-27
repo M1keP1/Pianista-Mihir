@@ -245,7 +245,21 @@ export function usePddlEditorState(): UsePddlEditorStateResult {
     [problem, validateDomainNow, validateProblemNow]
   );
 
+  const hasLoaded = useRef(false);
+  const validateDomainNowRef = useRef(validateDomainNow);
+  const validateProblemNowRef = useRef(validateProblemNow);
+
   useEffect(() => {
+    validateDomainNowRef.current = validateDomainNow;
+  }, [validateDomainNow]);
+
+  useEffect(() => {
+    validateProblemNowRef.current = validateProblemNow;
+  }, [validateProblemNow]);
+
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
     const saved = loadPddl();
     if (!saved) return;
     const d = (saved.domain ?? "").trim();
@@ -254,11 +268,11 @@ export function usePddlEditorState(): UsePddlEditorStateResult {
     if (p) setProblem(p);
     if (d || p) {
       setTimeout(async () => {
-        if (d) await validateDomainNow(d);
-        if (p) await validateProblemNow(p, d);
+        if (d) await validateDomainNowRef.current?.(d);
+        if (p) await validateProblemNowRef.current?.(p, d);
       }, 0);
     }
-  }, [validateDomainNow, validateProblemNow]);
+  }, []);
 
   useEffect(() => {
     const empty = !domain.trim();
