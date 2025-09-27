@@ -5,6 +5,7 @@ import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
 import PillButton from "@/components/PillButton";
 import { generateSolution } from "@/api/pianista/generateSolution";
 import getSolution from "@/api/pianista/getSolution";
+import MiniZincEditorCard from "./minizinc/MiniZincEditorCard";
 
 type Phase = "compose" | "result";
 type RunState = "idle" | "submitting" | "polling" | "error" | "done";
@@ -181,100 +182,25 @@ while (attempt < maxPolls && aliveRef.current) {
               alignItems: "stretch",
             }}
           >
-          {/* Left: Model (.mzn) */}
-          <section
-            style={{
-              display: "grid",
-              gridTemplateRows: "auto 1fr",
-              height: "48vh",
-              minHeight: 320,
-              border: "1px solid var(--color-border-muted)",
-              borderRadius: 12,
-              background: "var(--color-surface)",
-              boxShadow: "0 1px 4px var(--color-shadow) inset",
-              overflow: "hidden",
-            }}
-          >
-            {/* Header/title INSIDE the container */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 12px",
-                borderBottom: "1px solid var(--color-border-muted)",
-                fontWeight: 600,
-              }}
-            >
-              <span>Model (.mzn)</span>
-              {/* (Optional) status pill could also live here if you want */}
-            </div>
+            <MiniZincEditorCard
+              title="Model (.mzn)"
+              value={modelStr}
+              onChange={setModelStr}
+              status={modelStatus}
+              statusHint={statusHint || undefined}
+              placeholder="Write your MiniZinc model here"
+              disabled={isBusy}
+            />
 
-            {/* Content area with small inner gap */}
-            <div style={{ padding: 8, display: "grid" }}>
-              <Textarea
-                value={modelStr}
-                onChange={setModelStr}
-                style={{ height: "100%" } as React.CSSProperties}  // fills the content area
-                autoResize={false}
-                minRows={12}
-                maxRows={24}
-                width="100%"
-                placeholder="Write your MiniZinc model here"
-                disabled={isBusy}
-                showStatusPill
-                status={modelStatus}
-                statusHint={statusHint || undefined}
-              />
-            </div>
-          </section>
-
-
-          {/* Right: Parameters (JSON) */}
-          <section
-            style={{
-              display: "grid",
-              gridTemplateRows: "auto 1fr",
-              height: "48vh",
-              minHeight: 320,
-              border: "1px solid var(--color-border-muted)",
-              borderRadius: 12,
-              background: "var(--color-surface)",
-              boxShadow: "0 1px 4px var(--color-shadow) inset",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 12px",
-                borderBottom: "1px solid var(--color-border-muted)",
-                fontWeight: 600,
-              }}
-            >
-              <span>Parameters (JSON)</span>
-            </div>
-
-            <div style={{ padding: 8, display: "grid" }}>
-              <Textarea
-                value={paramsText}
-                onChange={setParamsText}
-                style={{ height: "100%" } as React.CSSProperties}
-                autoResize={false}
-                minRows={12}
-                maxRows={24}
-                width="100%"
-                placeholder='e.g. { "target": 199 }'
-                disabled={isBusy}
-                showStatusPill
-                status={paramsStatus}
-                statusHint={statusHint || undefined}
-              />
-            </div>
-          </section>
-
+            <MiniZincEditorCard
+              title="Parameters (JSON)"
+              value={paramsText}
+              onChange={setParamsText}
+              status={paramsStatus}
+              statusHint={statusHint || undefined}
+              placeholder='e.g. { "target": 199 }'
+              disabled={isBusy}
+            />
           </div>
 
           {/* Button row — below & right-aligned */}
