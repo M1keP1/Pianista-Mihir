@@ -1,4 +1,5 @@
 // src/pages/plan.tsx
+import type { CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import PillButton from "@/components/PillButton";
@@ -6,8 +7,23 @@ import Textarea from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 
 import GanttLite from "@/components/gantt-lite";
+import PlanViewPanel from "@/pages/plan/components/PlanViewPanel";
 import { usePlanData } from "@/pages/plan/hooks/usePlanData";
 import { usePlanView } from "@/pages/plan/hooks/usePlanView";
+
+const TEXT_VIEW_TEXTAREA_STYLE: CSSProperties = {
+  flex: 1,
+  width: "100%",
+  height: "100%",
+  border: "none",
+  borderRadius: 0,
+  outline: "none",
+  overflow: "auto",
+  background: "transparent",
+  padding: 12,
+  fontFamily:
+    "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
+};
 
 type PlanView = "raw" | "json" | "gantt";
 
@@ -44,13 +60,6 @@ export default function PlanPage() {
         padding: "12px 12px 84px 12px", // extra bottom padding for fixed footer
       }}
     >
-      <style>{`
-      /* Force the Raw editor to fully fill its container */
-      .raw-fill-abs { position: relative; flex: 1; min-height: 0; }
-      .raw-fill-abs > .abs { position: absolute; inset: 0; display: flex; }
-      .raw-fill-abs textarea { height: 100% !important; }
-      `}</style>
-
       {/* Content (wider & taller than before) */}
       <div style={{ display: "grid", gap: "12px", width: "min(1400px, 96vw)" }}>
         {/* Plan Container */}
@@ -117,141 +126,76 @@ export default function PlanPage() {
           {/* Body */}
           <div style={{ position: "relative", padding: 10, minHeight: 520 }}>
             {view === "raw" && (
-              <div
-                style={{
-                  height: "70vh",
-                  minHeight: 520,
-                  border: "1px solid var(--color-border-muted)",
-                  borderRadius: 10,
-                  background: "var(--color-surface)",
-                  boxShadow: "0 1px 4px var(--color-shadow) inset",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div className="raw-fill-abs">
-                  <div className="abs">
-                    <Textarea
-                      value={rawPlan}
-                      onChange={setRawPlan}
-                      onSubmit={validateNow}
-                      placeholder="Fast Downward SequentialPlan:\n    communicate(s1, gs1)\n    ..."
-                      autoResize={false}
-                      height="100%"
-                      showStatusPill
-                      data-themed-scroll
-                      status={status}
-                      statusPillPlacement="top-right"
-                      statusHint={msg || undefined}
-                      style={{
-                        flex: 1,
-                        width: "100%",
-                        height: "100%",
-                        border: "none",
-                        borderRadius: 0,
-                        outline: "none",
-                        overflow: "auto",
-                        background: "transparent",
-                        padding: 12,
-                        fontFamily:
-                          "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <PlanViewPanel scrollable>
+                <Textarea
+                  value={rawPlan}
+                  onChange={setRawPlan}
+                  onSubmit={validateNow}
+                  placeholder="Fast Downward SequentialPlan:\n    communicate(s1, gs1)\n    ..."
+                  autoResize={false}
+                  height="100%"
+                  showStatusPill
+                  data-themed-scroll
+                  status={status}
+                  statusPillPlacement="top-right"
+                  statusHint={msg || undefined}
+                  style={TEXT_VIEW_TEXTAREA_STYLE}
+                />
+              </PlanViewPanel>
             )}
             {view === "json" && (
-              <div
-                style={{
-                  height: "70vh",
-                  minHeight: 520,
-                  border: "1px solid var(--color-border-muted)",
-                  borderRadius: 10,
-                  background: "var(--color-surface)",
-                  boxShadow: "0 1px 4px var(--color-shadow) inset",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div className="raw-fill-abs">
-                  <div className="abs">
-                    <Textarea
-                      value={planJsonText}
-                      onChange={setPlanJsonText}
-                      onSubmit={validateNow}
-                      placeholder='{"plan":[{"action":"communicate","args":["s1","gs1"],"start":0,"duration":2}], "metrics":{}}'
-                      autoResize={false}
-                      showStatusPill
-                      status={status}
-                      data-themed-scroll
-                      statusPillPlacement="top-right"
-                      statusHint={msg || undefined}
-                      style={{
-                        flex: 1,
-                        width: "100%",
-                        height: "100%",
-                        border: "none",
-                        borderRadius: 0,
-                        outline: "none",
-                        overflow: "auto",
-                        background: "transparent",
-                        padding: 12,
-                        fontFamily:
-                          "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <PlanViewPanel scrollable>
+                <Textarea
+                  value={planJsonText}
+                  onChange={setPlanJsonText}
+                  onSubmit={validateNow}
+                  placeholder='{"plan":[{"action":"communicate","args":["s1","gs1"],"start":0,"duration":2}], "metrics":{}}'
+                  autoResize={false}
+                  showStatusPill
+                  status={status}
+                  data-themed-scroll
+                  statusPillPlacement="top-right"
+                  statusHint={msg || undefined}
+                  style={TEXT_VIEW_TEXTAREA_STYLE}
+                />
+              </PlanViewPanel>
             )}
 
             {/* Gantt tab renders from the freshest source — taller now */}
-            {view === "gantt" && (planForGantt?.plan?.length ?? 0) > 0 && (
-              <div
-                style={{
-                  height: "70vh",
-                  minHeight: 520,
-                  border: "1px solid var(--color-border-muted)",
-                  borderRadius: "10px",
-                  background: "var(--color-surface)",
-                  boxShadow: "0 1px 4px var(--color-shadow) inset",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <GanttLite
-                  planData={planForGantt}
-                  timeUnit="hour"
-                  boxed={false}
-                  laneColumnWidth={220}
-                  rowHeight={28}
-                  pxPerUnitInitial={80}
-                />
-              </div>
+            {view === "gantt" && (
+              <PlanViewPanel>
+                {(planForGantt?.plan?.length ?? 0) > 0 ? (
+                  <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+                    <GanttLite
+                      planData={planForGantt}
+                      timeUnit="hour"
+                      boxed={false}
+                      laneColumnWidth={220}
+                      rowHeight={28}
+                      pxPerUnitInitial={80}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--color-text-secondary)",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    No plan data available for timeline view
+                  </div>
+                )}
+              </PlanViewPanel>
             )}
 
-            {/* Empty state for gantt when no plan */}
-            {view === "gantt" && !((planForGantt?.plan?.length ?? 0) > 0) && (
-              <div
-                style={{
-                  height: "70vh",
-                  minHeight: 520,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-text-secondary)",
-                  fontSize: "0.9rem",
-                }}
-              >
-                No plan data available for timeline view
-              </div>
-            )}
-
-            <div className="field-hint" style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}>
+            <div
+              className="field-hint"
+              style={{ marginTop: 8, opacity: 0.7, fontSize: 12 }}
+            >
               {view === "raw" &&
                 "Hint: Planner response (RAW). Editing this updates the adapted JSON and Gantt."}
               {view === "json" &&
