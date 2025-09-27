@@ -12,6 +12,7 @@ import Spinner from "@/components/icons/Spinner";
 import Brain from "@/components/icons/Brain";
 import Check from "@/components/icons/Check";
 import Reload from "@/components/icons/Reload";
+import ActionBar from "@/components/layout/ActionBar";
 
 import { useTwoModeAutoDetect, type TwoMode } from "@/hooks/useTwoModeAutoDetect";
 import {
@@ -131,77 +132,74 @@ export default function PddlEditPage() {
     >
       <BrandLogo />
 
-      {/* Floating actions dock (same level as footer; not fused) */}
-      <div className="actions-dock">
-        <div className="control-lane">
-          {/* View toggle button */}
-          {isMermaidOpen ? (
-            <PillButton
-              onClick={closeMermaid}
-              label="PDDL View"
-              ariaLabel="Close Mermaid and return to PDDL editors"
-            />
-          ) : (
-            <PillButton
-              onClick={openMermaid}
-              label="Mermaid View"
-              ariaLabel="Open Mermaid diagram"
-              disabled={!canConvertMermaid}
-            />
-          )}
-
-          <PlannerDropup
-            value={selectedPlanner}
-            onChange={setSelectedPlanner}
+      <ActionBar>
+        {/* View toggle button */}
+        {isMermaidOpen ? (
+          <PillButton
+            onClick={closeMermaid}
+            label="PDDL View"
+            ariaLabel="Close Mermaid and return to PDDL editors"
           />
+        ) : (
+          <PillButton
+            onClick={openMermaid}
+            label="Mermaid View"
+            ariaLabel="Open Mermaid diagram"
+            disabled={!canConvertMermaid}
+          />
+        )}
 
-          {/* Generate (uses your original glow-pulse while busy) */}
-          {planPhase === "success" ? (
+        <PlannerDropup
+          value={selectedPlanner}
+          onChange={setSelectedPlanner}
+        />
+
+        {/* Generate (uses your original glow-pulse while busy) */}
+        {planPhase === "success" ? (
+          <PillButton
+            to={`/plan?job=${encodeURIComponent(planId)}`}
+            label=" See Plan  "
+            rightIcon={<Check />}
+            ariaLabel="See generated plan"
+          />
+        ) : (
+          <div
+            className={planPhase === "submitting" || planPhase === "polling" ? "glow-pulse" : ""}
+            style={{ display: "inline-flex", borderRadius: 10 }}
+          >
             <PillButton
-              to={`/plan?job=${encodeURIComponent(planId)}`}
-              label=" See Plan  "
-              rightIcon={<Check />}
-              ariaLabel="See generated plan"
+              onClick={handleGeneratePlan}
+              label={
+                planPhase === "submitting" || planPhase === "polling"
+                  ? genLabel
+                  : "Generate Plan"
+              }
+              rightIcon={
+                planPhase === "submitting" ? <Spinner /> :
+                planPhase === "polling" ? <Brain /> :
+                undefined
+              }
+              disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
+              ariaLabel="Generate plan from current PDDL"
             />
-          ) : (
-            <div
-              className={planPhase === "submitting" || planPhase === "polling" ? "glow-pulse" : ""}
-              style={{ display: "inline-flex", borderRadius: 10 }}
-            >
-              <PillButton
-                onClick={handleGeneratePlan}
-                label={
-                  planPhase === "submitting" || planPhase === "polling"
-                    ? genLabel
-                    : "Generate Plan"
-                }
-                rightIcon={
-                  planPhase === "submitting" ? <Spinner /> :
-                  planPhase === "polling" ? <Brain /> :
-                  undefined
-                }
-                disabled={!canGenerate || planPhase === "submitting" || planPhase === "polling"}
-                ariaLabel="Generate plan from current PDDL"
-              />
-            </div>
-          )}
-          {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
-          <div className="reset-slot">
-            {planPhase === "success" && (
-              <PillButton
-                onClick={handleRegenerate}
-                iconOnly
-                rightIcon={<Reload className="icon-accent"/>}
-                ariaLabel="Clear Plan"
-                style={{
-                    width: 30,
-                    height: 30,
-                }}
-              />
-            )}
           </div>
+        )}
+        {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
+        <div className="reset-slot">
+          {planPhase === "success" && (
+            <PillButton
+              onClick={handleRegenerate}
+              iconOnly
+              rightIcon={<Reload className="icon-accent"/>}
+              ariaLabel="Clear Plan"
+              style={{
+                  width: 30,
+                  height: 30,
+              }}
+            />
+          )}
         </div>
-      </div>
+      </ActionBar>
 
 
 
