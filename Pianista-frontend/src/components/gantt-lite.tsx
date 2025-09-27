@@ -1,70 +1,12 @@
 // src/components/gantt-lite.tsx
 import React, { useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import GanttHeader from "./gantt-lite/GanttHeader";
+import GanttLegend from "./gantt-lite/GanttLegend";
+import { useTooltip } from "./gantt-lite/useTooltip";
+import type { PlanData, TimeUnit } from "./gantt-lite/processing";
+import { clamp, R, ceil, floor, colorFor, textOn, useProcessedPlan } from "./gantt-lite/processing";
 
-/** Adapter output shape (PlanData) */
-type TimeUnit = "second" | "minute" | "hour" | "day";
-export interface PlanTask { action: string; args: string[]; start?: number; duration?: number; }
-export interface PlanMetrics { "total-duration"?: number; planner?: string; status?: string; "actions-used"?: number; }
-export interface PlanData { plan: PlanTask[]; metrics?: PlanMetrics; }
-
-/** Internal processed shapes */
-interface ProcessedTask {
-  id: string; action: string; satellite: string; target: string;
-  start: number; duration: number; end: number; subRow: number;
-}
-interface ProcessedLane { name: string; tasks: ProcessedTask[]; maxRows: number; }
-interface ProcessedData { lanes: ProcessedLane[]; maxDuration: number; }
-
-/* ----------------------------- helpers ----------------------------- */
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const R = (n: number) => Math.round(n);
-const ceil = Math.ceil;
-const floor = Math.floor;
-
-const hash = (s: string) => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
-const colorFor = (key: string) => `hsl(${hash(key) % 360} 62% 52%)`;
-const textOn = (hsl: string) => /hsl\(\s*\d+\s+\d+%\s+(\d+)%\s*\)/i.test(hsl) && Number(RegExp.$1) > 60 ? "var(--color-bg)" : "#fff";
-
-/** plan.json → processed lanes */
-function toProcessed(planData: PlanData): ProcessedData {
-  const tasks: ProcessedTask[] = [];
-  let cursor = 0;
-
-  planData.plan.forEach((t, i) => {
-    const start = Number.isFinite(t.start as number) ? Math.max(0, Math.floor(t.start!)) : cursor;
-    const duration = Number.isFinite(t.duration as number) ? Math.max(1, Math.ceil(t.duration!)) : 1;
-    const satellite = t.args?.[0] ?? t.action;
-    const target = t.args?.[1] ?? "";
-    tasks.push({ id: `${satellite}:${t.action}:${i}`, action: t.action, satellite, target, start, duration, end: start + duration, subRow: 0 });
-    if (!Number.isFinite(t.start as number)) cursor += duration;
-  });
-
-  const laneMap = new Map<string, ProcessedLane>();
-  for (const tk of tasks) {
-    if (!laneMap.has(tk.satellite)) laneMap.set(tk.satellite, { name: tk.satellite, tasks: [], maxRows: 1 });
-    laneMap.get(tk.satellite)!.tasks.push(tk);
-  }
-
-  // simple row packing per lane (no overlaps)
-  for (const lane of laneMap.values()) {
-    const rows: ProcessedTask[][] = [[]];
-    for (const tk of lane.tasks.sort((a, b) => a.start - b.start || a.end - b.end)) {
-      let placed = false;
-      for (let r = 0; r < rows.length; r++) {
-        const last = rows[r][rows[r].length - 1];
-        if (!last || last.end <= tk.start) { tk.subRow = r; rows[r].push(tk); placed = true; break; }
-      }
-      if (!placed) { tk.subRow = rows.length; rows.push([tk]); }
-    }
-    lane.maxRows = rows.length;
-  }
-
-  const maxDuration = planData.metrics?.["total-duration"] ?? tasks.reduce((mx, t) => Math.max(mx, t.end), 0);
-  return { lanes: Array.from(laneMap.values()), maxDuration };
-}
-
-/* ----------------------------- component ----------------------------- */
 type GanttLiteProps = {
   planData: PlanData;
   timeUnit?: TimeUnit;
@@ -98,11 +40,13 @@ const GanttLite: React.FC<GanttLiteProps> = ({
   boxed = true,
   className = "",
 }) => {
-  const processed = useMemo(() => toProcessed(planData), [planData]);
+  const processed = useProcessedPlan(planData);
   const [pxPerUnit, setPxPerUnit] = useState(pxPerUnitInitial);
-  const [hoverId, setHoverId] = useState<string | null>(null);
-  const [tip, setTip] = useState<{ x: number; y: number; html: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lanesRef = useRef<HTMLDivElement>(null);
+  const syncingRef = useRef(false);
+
+  const { hoverId, tip, onEnter, onLeave } = useTooltip({ enabled: showTooltips, timeUnit });
 
   // geometry helpers (shared)
   const xSnap = useCallback((t: number) => R(t * pxPerUnit), [pxPerUnit]);
@@ -128,46 +72,8 @@ const GanttLite: React.FC<GanttLiteProps> = ({
     }
   }, []);
 
-  const zoomIn  = () => setPxPerUnit(v => clamp(R(v * 1.25), 8, 256));
-  const zoomOut = () => setPxPerUnit(v => clamp(R(v / 1.25), 8, 256));
-
-    const handleMouseEnter = (e: React.MouseEvent, tk: ProcessedTask) => {
-    setHoverId(tk.id);
-    if (!showTooltips) return;
-
-    const targetEl = e.currentTarget as HTMLElement;
-    const barRect = targetEl.getBoundingClientRect();
-
-    // Prefer to the RIGHT of the bar
-    const offset = 12; // px
-    const baseX = barRect.right + offset;
-    const baseY = barRect.top + barRect.height / 2;
-
-    // Clamp to viewport so it never goes off-screen
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const margin = 12;
-
-    // If we're too close to the right edge, flip to the LEFT side of the bar.
-    const preferredX = baseX > vw - 180 ? (barRect.left - offset) : baseX; // 180 is a safe min width guess
-    const x = Math.max(margin, Math.min(preferredX, vw - margin));
-    const y = Math.max(margin, Math.min(baseY, vh - margin));
-
-    const duration = tk.end - tk.start;
-    const title = `${tk.action}${tk.target ? " → " + tk.target : ""}`;
-    const sub = `${tk.start}–${tk.end} ${timeUnit} • Δ${duration}`;
-
-    const html =
-        `<div style="font-weight:600">${title}</div>` +
-        `<div style="opacity:.8;font-size:11px;line-height:1.2">${sub}</div>`;
-
-    setTip({ x, y, html }); // viewport-relative
-    };
-
-    const handleMouseLeave = () => {
-    setHoverId(null);
-    setTip(null);
-    };
+  const zoomIn = () => setPxPerUnit((v) => clamp(R(v * 1.25), 8, 256));
+  const zoomOut = () => setPxPerUnit((v) => clamp(R(v / 1.25), 8, 256));
 
   const ticks = useMemo(() => {
     const max = Math.max(0, Math.ceil(processed.maxDuration));
@@ -182,38 +88,35 @@ const GanttLite: React.FC<GanttLiteProps> = ({
     return map;
   }, [processed]);
 
-  // chrome styles
   const wrapStyle: React.CSSProperties = boxed
     ? { borderRadius: 12, border: "1px solid var(--color-border-muted)", background: "var(--color-surface)" }
     : { borderRadius: 0, border: "none", background: "transparent" };
 
-  const headerStyle: React.CSSProperties = boxed
+  const timelineHeaderStyle: React.CSSProperties = boxed
     ? { borderBottom: "1px solid var(--color-border-muted)", background: "var(--color-surface-bridge)" }
     : { borderBottom: "none", background: "transparent" };
 
-  const legendStyle: React.CSSProperties = boxed
-    ? { borderTop: "1px solid var(--color-border-muted)", background: "var(--color-surface-bridge)" }
-    : { borderTop: "none", background: "transparent" };
-
-    const lanesRef = useRef<HTMLDivElement>(null);
-
-    const syncingRef = useRef(false);
-
-    const onTimelineScroll = () => {
-    const r = scrollRef.current, l = lanesRef.current;
+  const onTimelineScroll = () => {
+    const r = scrollRef.current;
+    const l = lanesRef.current;
     if (!r || !l || syncingRef.current) return;
     syncingRef.current = true;
     l.scrollTop = r.scrollTop;
-    requestAnimationFrame(() => (syncingRef.current = false));
-    };
+    requestAnimationFrame(() => {
+      syncingRef.current = false;
+    });
+  };
 
-    const onLanesScroll = () => {
-    const r = scrollRef.current, l = lanesRef.current;
+  const onLanesScroll = () => {
+    const r = scrollRef.current;
+    const l = lanesRef.current;
     if (!r || !l || syncingRef.current) return;
     syncingRef.current = true;
     r.scrollTop = l.scrollTop;
-    requestAnimationFrame(() => (syncingRef.current = false));
-    };
+    requestAnimationFrame(() => {
+      syncingRef.current = false;
+    });
+  };
 
 
   return (
@@ -228,23 +131,14 @@ const GanttLite: React.FC<GanttLiteProps> = ({
         ...wrapStyle,
       }}
     >
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", flexShrink: 0, ...headerStyle }}>
-        <div style={{ fontSize: 14, fontWeight: 700 }}>
-          Timeline {planData.metrics?.planner ? `· ${planData.metrics.planner}` : ""}
-        </div>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={zoomOut} className="btn btn--surface btn--sm" aria-label="Zoom out">–</button>
-          <input
-            type="range" min={8} max={256} step={1}
-            value={pxPerUnit}
-            onChange={(e) => setPxPerUnit(Number(e.target.value))}
-            style={{ width: 160, accentColor: "var(--color-accent)" }}
-          />
-          <button onClick={zoomIn} className="btn btn--surface btn--sm" aria-label="Zoom in">+</button>
-        </div>
-      </div>
+      <GanttHeader
+        planner={planData.metrics?.planner}
+        boxed={boxed}
+        pxPerUnit={pxPerUnit}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onPxPerUnitChange={(value) => setPxPerUnit(value)}
+      />
 
       {/* Body */}
       <div style={{ display: "grid", gridTemplateColumns: `${laneColumnWidth}px 1fr`, minHeight: 0, flex: 1 }}>
@@ -306,7 +200,7 @@ transform: "translateY(-50%)",
 
           {/* Ruler */}
           {showRuler && (
-            <div style={{ position: "sticky", top: 0, zIndex: 3, ...headerStyle }}>
+            <div style={{ position: "sticky", top: 0, zIndex: 3, ...timelineHeaderStyle }}>
               <div style={{ position: "relative", height: 36, width: contentWidth }}>
                 {ticks.map((t) => {
                   const x = xSnap(t);
@@ -397,8 +291,8 @@ transform: "translateY(-50%)",
                     return (
                       <div
                         key={tk.id}
-                        onMouseEnter={(e) => handleMouseEnter(e, tk)}
-                        onMouseLeave={handleMouseLeave}
+                        onMouseEnter={(e) => onEnter(e, tk)}
+                        onMouseLeave={onLeave}
                         title={
                           showTooltips
                             ? undefined
@@ -461,54 +355,43 @@ transform: "translateY(-50%)",
           </div>
 
           {/* Tooltip */}
-            {showTooltips && tip && createPortal(
-            <div
+          {showTooltips && tip &&
+            createPortal(
+              <div
                 style={{
-                position: "fixed",
-                left: tip.x,
-                top: tip.y,
-                transform: "translate(0, -50%)", // vertically center on pointer/bar mid
-                background: "var(--color-surface, color-mix(in srgb, var(--color-bg) 85%, #000 15%))",
-                color: "var(--tooltip-fg, var(--color-fg, #111))",
-                border: "1px solid var(--tooltip-border, rgba(0,0,0,.18))",
-                borderRadius: 8,
-                padding: "4px 8px",
-                lineHeight: 1.2,
-                fontSize: 12,
-                textAlign: "center",          // center the content
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-                boxShadow: "0 10px 24px var(--tooltip-shadow, rgba(0,0,0,.25))",
-                backdropFilter: "blur(2px)",
-                zIndex: 2147483647,           // always on top
-                fontVariantNumeric: "tabular-nums",
+                  position: "fixed",
+                  left: tip.x,
+                  top: tip.y,
+                  transform: "translate(0, -50%)", // vertically center on pointer/bar mid
+                  background: "var(--color-surface, color-mix(in srgb, var(--color-bg) 85%, #000 15%))",
+                  color: "var(--tooltip-fg, var(--color-fg, #111))",
+                  border: "1px solid var(--tooltip-border, rgba(0,0,0,.18))",
+                  borderRadius: 8,
+                  padding: "4px 8px",
+                  lineHeight: 1.2,
+                  fontSize: 12,
+                  textAlign: "center", // center the content
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  boxShadow: "0 10px 24px var(--tooltip-shadow, rgba(0,0,0,.25))",
+                  backdropFilter: "blur(2px)",
+                  zIndex: 2147483647, // always on top
+                  fontVariantNumeric: "tabular-nums",
                 }}
                 dangerouslySetInnerHTML={{ __html: tip.html }}
-            />,
-            document.body
+              />,
+              document.body
             )}
         </div>
       </div>
 
-      {/* Legend */}
       {showLegend && (
-        <div
-          style={{
-            padding: "8px 12px",
-            display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center",
-            color: "var(--color-text)", flexShrink: 0, ...legendStyle,
-          }}
-        >
-          {Array.from(actionColors.entries()).map(([action, color]) => (
-            <div key={action} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-              <span aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: color }} />
-              <span style={{ opacity: 0.9, fontWeight: 700 }}>{action}</span>
-            </div>
-          ))}
-          <div style={{ marginLeft: "auto", fontSize: 12, opacity: 0.75 }}>
-            unit: <strong>{timeUnit}</strong> · duration: <strong>{Math.ceil(processed.maxDuration)}</strong>
-          </div>
-        </div>
+        <GanttLegend
+          boxed={boxed}
+          actionColors={actionColors}
+          timeUnit={timeUnit}
+          maxDuration={processed.maxDuration}
+        />
       )}
     </div>
   );
