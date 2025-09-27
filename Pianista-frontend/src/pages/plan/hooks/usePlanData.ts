@@ -162,24 +162,35 @@ export function usePlanData(job: string) {
 
   useEffect(() => {
     if (!job) return;
-    try {
-      const obj = JSON.parse(planJsonText);
-      if (obj && Array.isArray(obj.plan)) {
-        setPlanParsed(obj);
-        if (saveJsonDeb.current) window.clearTimeout(saveJsonDeb.current);
-        saveJsonDeb.current = window.setTimeout(() => {
-          try {
-            savePlanAdapted?.(job, obj);
-          } catch {}
-        }, 300) as unknown as number;
-      }
-    } catch {}
-    return () => {
+
+    const cleanup = () => {
       if (saveJsonDeb.current) {
         window.clearTimeout(saveJsonDeb.current);
         saveJsonDeb.current = null;
       }
     };
+
+    try {
+      const obj = JSON.parse(planJsonText);
+      if (obj && Array.isArray(obj.plan)) {
+        cleanup();
+        setPlanParsed(obj);
+        saveJsonDeb.current = window.setTimeout(() => {
+          try {
+            savePlanAdapted?.(job, obj);
+          } catch {}
+        }, 300) as unknown as number;
+        return cleanup;
+      }
+
+      cleanup();
+      setPlanParsed(null);
+      return cleanup;
+    } catch {
+      cleanup();
+      setPlanParsed(null);
+      return cleanup;
+    }
   }, [planJsonText, job]);
 
   const planForGantt: PlanData = useMemo(() => {
