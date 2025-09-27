@@ -4,26 +4,11 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import BrandLogo from "@/components/VS_BrandButton";
 import PillButton from "@/components/PillButton";
-import Textarea, { type TextAreaStatus, type TextareaHandle } from "@/components/Inputbox/TextArea";
+import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/components/MermaidPanel";
 import PlannerDropup from "../components/PlannerDropup";
 
-import {
-  loadPddl,
-  savePddl as savePddlLegacy,
-  savePddlSnapshot,
-  savePlanJob,
-  loadPlan,
-  savePlanResult,
-} from "@/lib/pddlStore";
-
-import { validatePddl } from "@/api/pianista/validatePddl";
-import { validateMatchPddl } from "@/api/pianista/validateMatchPddl";
-import { generateProblemFromNL } from "@/api/pianista/generateProblem";
-import { generateDomainFromNL } from "@/api/pianista/generateDomain";
-import { generatePlan } from "@/api/pianista/generatePlan";
-import { getPlan } from "@/api/pianista/getPlan";
 import { generateMermaid, type MermaidMode } from "@/api/pianista/generateMermaid";
 
 import Spinner from "@/components/icons/Spinner";
@@ -32,17 +17,15 @@ import Check from "@/components/icons/Check";
 import Reload from "@/components/icons/Reload";
 
 import { useTwoModeAutoDetect, type TwoMode } from "@/hooks/useTwoModeAutoDetect";
+import {
+  usePddlEditorState,
+  type DomainEditMode,
+  type ProblemEditMode,
+} from "@/hooks/usePddlEditorState";
+import { usePlanGeneration } from "@/hooks/usePlanGeneration";
 
-
-/* -------------------------------------------------------------------------- */
-
-const DEBOUNCE_MS = 2500;
-
-type PlanPhase = "idle" | "submitting" | "polling" | "success" | "error";
 
 type MermaidUiMode = "D+P" | "D" | "P";
-type DomainEditMode = "AI" | "D";
-type ProblemEditMode = "AI" | "P";
 
 /* ----------------------------- Cache utilities ----------------------------- */
 
@@ -127,46 +110,50 @@ export default function PddlEditPage() {
   const jobFromUrl = params.get("job")?.trim() || "";
 
   /* ------------------------------- Editors -------------------------------- */
-  const [domain, setDomain] = useState("");
-  const [problem, setProblem] = useState("");
+  const {
+    domain,
+    setDomain,
+    problem,
+    setProblem,
+    domainRef,
+    problemRef,
+    domainAtEnd,
+    problemAtEnd,
+    updateDomainCaret,
+    updateProblemCaret,
+    domainMode,
+    setDomainMode,
+    problemMode,
+    setProblemMode,
+    domainStatus,
+    setDomainStatus,
+    domainMsg,
+    setDomainMsg,
+    problemStatus,
+    setProblemStatus,
+    problemMsg,
+    setProblemMsg,
+    validateDomainNow,
+    validateProblemNow,
+    generateDomainNow,
+    generateProblemNow,
+  } = usePddlEditorState();
 
-  const domainRef = useRef<TextareaHandle>(null);
-  const problemRef = useRef<TextareaHandle>(null);
-  const [domainAtEnd, setDomainAtEnd] = useState(true);
-  const [problemAtEnd, setProblemAtEnd] = useState(true);
+  const plan = usePlanGeneration({
+    domain,
+    problem,
+    setDomain,
+    setProblem,
+    setDomainStatus,
+    setDomainMsg,
+    setProblemStatus,
+    setProblemMsg,
+    navigate,
+    jobFromUrl,
+  });
 
-  const updateAtEnd = (ref: React.RefObject<TextareaHandle | null>, setter: (v: boolean) => void) => {
-      const el = ref.current?.textarea;
-      if (!el) return;
-      const atEnd = el.selectionStart === el.selectionEnd && el.selectionStart === el.value.length;
-      setter(atEnd);
-    };
-
-  const [domainMode, setDomainMode] = useState<DomainEditMode>("AI");
-  const [problemMode, setProblemMode] = useState<ProblemEditMode>("AI");
-
-  const [domainStatus, setDomainStatus] = useState<TextAreaStatus>("idle");
-  const [problemStatus, setProblemStatus] = useState<TextAreaStatus>("idle");
-  const [domainMsg, setDomainMsg] = useState("");
-  const [problemMsg, setProblemMsg] = useState("");
-
-  /* -------------------------------- Plan ---------------------------------- */
-  const [planPhase, setPlanPhase] = useState<PlanPhase>("idle");
-  const [genLabel, setGenLabel] = useState<string>("Generate Plan");
-  const [planId, setPlanId] = useState<string>("");
-  const [, setPlanErr] = useState<string>("");
-
-  /* ---------------------------- Async plumbing ---------------------------- */
-  const domainAbort = useRef<AbortController | null>(null);
-  const problemAbort = useRef<AbortController | null>(null);
-  const domainReqId = useRef(0);
-  const problemReqId = useRef(0);
-
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollAbort = useRef<AbortController | null>(null);
-
-  const domainDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const problemDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { planPhase, genLabel, planId, selectedPlanner, setSelectedPlanner, handleGeneratePlan, handleRegenerate } =
+    plan;
 
   /* --------------------------- Mermaid container -------------------------- */
   const [showMermaid, setShowMermaid] = useState(false);
@@ -178,6 +165,13 @@ export default function PddlEditPage() {
   const mermaidReqSeq = useRef(0);
   const lastMermaidKey = useRef<string>("");
   const mermaidAutoDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      mermaidAbort.current?.abort();
+      if (mermaidAutoDebounce.current) clearTimeout(mermaidAutoDebounce.current);
+    };
+  }, []);
 
   /* ------------------------- Auto-detect AI/D/P modes ---------------------- */
   useTwoModeAutoDetect({
@@ -213,226 +207,6 @@ export default function PddlEditPage() {
 
   const toApiMode = (m: MermaidUiMode): MermaidMode =>
     m === "D" ? "domain" : m === "P" ? "problem" : "none";
-
-  /* ----------------------------- Validators -------------------------------- */
-
-  const validateDomainNow = async (text: string) => {
-    const d = text.trim();
-    if (!d) return;
-    if (domainDebounce.current) clearTimeout(domainDebounce.current);
-    domainAbort.current?.abort();
-    const ctrl = new AbortController();
-    domainAbort.current = ctrl;
-    const myId = ++domainReqId.current;
-    setDomainStatus("verification");
-    setDomainMsg("");
-    try {
-      const res = await validatePddl(d, "domain", ctrl.signal);
-      if (myId !== domainReqId.current) return;
-      const ok = res.result === "success";
-      setDomainStatus(ok ? "verified" : "error");
-      setDomainMsg(res.message ?? "");
-      if (ok) {
-        try {
-          if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem });
-        } catch {}
-      }
-    } catch (e: any) {
-      if (myId !== domainReqId.current) return;
-      setDomainStatus("error");
-      setDomainMsg(e?.message || "Validation failed.");
-    }
-  };
-
-  const validateProblemNow = async (problemText: string, domainText: string) => {
-    const p = problemText.trim();
-    if (!p) return;
-    if (problemDebounce.current) clearTimeout(problemDebounce.current);
-    problemAbort.current?.abort();
-    const ctrl = new AbortController();
-    problemAbort.current = ctrl;
-    const myId = ++problemReqId.current;
-    setProblemStatus("verification");
-    setProblemMsg("");
-    try {
-      const d = domainText.trim();
-      if (!d) {
-        const basic = await validatePddl(p, "problem", ctrl.signal);
-        if (myId !== problemReqId.current) return;
-        const ok = basic.result === "success";
-        setProblemStatus(ok ? "verified" : "error");
-        setProblemMsg(basic.message || (ok ? "Problem syntax looks valid." : "Problem validation failed."));
-        if (ok) {
-          try {
-            if (typeof savePddlLegacy === "function") savePddlLegacy({ domain, problem: p });
-          } catch {}
-        }
-        return;
-      }
-      try {
-        const match = await validateMatchPddl(d, p, ctrl.signal);
-        if (myId !== problemReqId.current) return;
-        if (match.result === "success") {
-          setProblemStatus("verified");
-          setProblemMsg(match.message || "Problem successfully validated against domain.");
-          try {
-            if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem: p });
-          } catch {}
-          return;
-        }
-      } catch {
-        // fall through
-      }
-      const basic = await validatePddl(p, "problem", ctrl.signal);
-      if (myId !== problemReqId.current) return;
-      if (basic.result === "success") {
-        setProblemStatus("error");
-        setProblemMsg("Syntax OK, but the problem does not match the current domain.");
-      } else {
-        setProblemStatus("error");
-        setProblemMsg(basic.message || "Problem validation failed.");
-      }
-    } catch (e: any) {
-      if (myId !== problemReqId.current) return;
-      setProblemStatus("error");
-      setProblemMsg(e?.message || "Validation failed.");
-    }
-  };
-
-  const generateProblemNow = async (nlText: string, domainText: string) => {
-    const t = nlText.trim();
-    const d = domainText.trim();
-    if (!t) return;
-    if (!d) {
-      setProblemStatus("error");
-      setProblemMsg("Add a domain to generate a problem from natural language.");
-      return;
-    }
-    if (problemDebounce.current) clearTimeout(problemDebounce.current);
-    problemAbort.current?.abort();
-    const ctrl = new AbortController();
-    problemAbort.current = ctrl;
-    const myId = ++problemReqId.current;
-    setProblemStatus("verification");
-    setProblemMsg("");
-    try {
-      const res = await generateProblemFromNL(t, d, { attempts: 1, generate_both: false, signal: ctrl.signal });
-      if (myId !== problemReqId.current) return;
-      if (res.result_status === "success" && res.generated_problem) {
-        const generated = res.generated_problem.trim();
-        setProblem(generated);
-        await validateProblemNow(generated, d);
-      } else {
-        setProblemStatus("error");
-        setProblemMsg(res.message || "Could not generate a problem from the provided description.");
-      }
-    } catch (e: any) {
-      if (myId !== problemReqId.current) return;
-      setProblemStatus("error");
-      setProblemMsg(e?.message || "Problem generation failed.");
-    }
-  };
-
-  const generateDomainNow = async (nlText: string) => {
-    const t = nlText.trim();
-    if (!t) return;
-    if (domainDebounce.current) clearTimeout(domainDebounce.current);
-    domainAbort.current?.abort();
-    const ctrl = new AbortController();
-    domainAbort.current = ctrl;
-    const myId = ++domainReqId.current;
-    setDomainStatus("verification");
-    setDomainMsg("");
-    try {
-      const res = await generateDomainFromNL(t, { attempts: 1, generate_both: false, signal: ctrl.signal });
-      if (myId !== domainReqId.current) return;
-      if (res.result_status === "success" && res.generated_domain) {
-        const generated = res.generated_domain.trim();
-        setDomain(generated);
-        await validateDomainNow(generated);
-        if (problem.trim()) await validateProblemNow(problem, generated);
-      } else {
-        setDomainStatus("error");
-        setDomainMsg(res.message || "Could not generate a domain from the provided description.");
-      }
-    } catch (e: any) {
-      if (myId !== domainReqId.current) return;
-      setDomainStatus("error");
-      setDomainMsg(e?.message || "Domain generation failed.");
-    }
-  };
-
-  /* --------------------------- Lifecycle bootstrap ------------------------- */
-  useEffect(() => {
-    if (jobFromUrl) {
-      const rec = loadPlan(jobFromUrl);
-      if (rec) {
-        setPlanId(jobFromUrl);
-        if (rec.domain) setDomain(rec.domain);
-        if (rec.problem) setProblem(rec.problem);
-        if (rec.plan) setPlanPhase("success");
-      }
-    }
-    const saved = loadPddl();
-    if (saved) {
-      const d = (saved.domain ?? "").trim();
-      const p = (saved.problem ?? "").trim();
-      if (!domain && d) setDomain(d);
-      if (!problem && p) setProblem(p);
-      setTimeout(async () => {
-        if (d) await validateDomainNow(d);
-        if (p) await validateProblemNow(p, d);
-      }, 0);
-    }
-    return () => {
-      domainAbort.current?.abort();
-      problemAbort.current?.abort();
-      if (pollTimer.current) clearInterval(pollTimer.current);
-      pollAbort.current?.abort();
-      if (domainDebounce.current) clearTimeout(domainDebounce.current);
-      if (problemDebounce.current) clearTimeout(problemDebounce.current);
-      mermaidAbort.current?.abort();
-      if (mermaidAutoDebounce.current) clearTimeout(mermaidAutoDebounce.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobFromUrl]);
-
-  /* --------------------- Debounced revalidation while typing ---------------- */
-  useEffect(() => {
-    const empty = !domain.trim();
-    if (empty) {
-      if (domainDebounce.current) clearTimeout(domainDebounce.current);
-      domainAbort.current?.abort();
-      setDomainStatus("idle");
-      setDomainMsg("");
-      return;
-    }
-    if (domainMode === "AI") return;
-    if (domainDebounce.current) clearTimeout(domainDebounce.current);
-    domainDebounce.current = setTimeout(() => validateDomainNow(domain), DEBOUNCE_MS);
-    return () => {
-      if (domainDebounce.current) clearTimeout(domainDebounce.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domain, domainMode]);
-
-  useEffect(() => {
-    const empty = !problem.trim();
-    if (empty) {
-      if (problemDebounce.current) clearTimeout(problemDebounce.current);
-      problemAbort.current?.abort();
-      setProblemStatus("idle");
-      setProblemMsg("");
-      return;
-    }
-    if (problemMode === "AI") return;
-    if (problemDebounce.current) clearTimeout(problemDebounce.current);
-    problemDebounce.current = setTimeout(() => validateProblemNow(problem, domain), DEBOUNCE_MS);
-    return () => {
-      if (problemDebounce.current) clearTimeout(problemDebounce.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [problem, domain, problemMode]);
 
   /* -------------------- Auto-refresh Mermaid on D/P edits ------------------- */
   useEffect(() => {
@@ -540,184 +314,6 @@ export default function PddlEditPage() {
       setMermaidText(`%% Network error\nflowchart TD\n  A[Start] --> B[Retry request];`);
     }
   };
-
-  /* ------------------------------- Plan actions ---------------------------- */
-
-  const startPolling = (id: string) => {
-    if (pollTimer.current) clearInterval(pollTimer.current);
-    pollAbort.current?.abort();
-    setPlanId(id);
-    setPlanPhase("polling");
-    setPlanErr("");
-    pollTimer.current = setInterval(async () => {
-      const ctrl = new AbortController();
-      pollAbort.current = ctrl;
-      try {
-        const res: any = await getPlan(id, ctrl.signal);
-        const status = String(res?.status ?? res?.result_status ?? "").toLowerCase();
-        if (status === "success") {
-          clearInterval(pollTimer.current!);
-          pollTimer.current = null;
-          setPlanPhase("success");
-          const planText = (res?.plan ?? res?.result_plan ?? "").trim?.() ?? "";
-          if (planText) {
-            try {
-              savePlanResult(id, planText);
-            } catch {}
-          }
-          setTimeout(() => {
-            navigate(`/plan?job=${encodeURIComponent(id)}`, { replace: true });
-          }, 0);
-          return;
-        }
-        if (status === "failure") {
-          clearInterval(pollTimer.current!);
-          pollTimer.current = null;
-          setPlanPhase("error");
-          setPlanErr(res?.message || "Planning failed.");
-          return;
-        }
-      } catch {
-        /* keep polling */
-      }
-    }, 2500);
-  };
-
-const ensureValidDomain = async (dText: string): Promise<{ ok: boolean; text: string }> => {
-  const d = dText.trim();
-  if (!d) return { ok: false, text: "" };
-  setGenLabel("Validating…");
-  setDomainStatus("verification");
-  try {
-    const res = await validatePddl(d, "domain");
-    if (res.result === "success") {
-      setDomainStatus("verified");
-      setDomainMsg(res.message ?? "");
-      return { ok: true, text: d };
-    }
-    setGenLabel("Fixing…");
-    const ai = await generateDomainFromNL(d, { attempts: 1, generate_both: false });
-    if (ai.result_status === "success" && ai.generated_domain) {
-      const fixed = ai.generated_domain.trim();
-      setDomain(fixed);
-      const re = await validatePddl(fixed, "domain");
-      const ok = re.result === "success";
-      setDomainStatus(ok ? "verified" : "error");
-      setDomainMsg(re.message ?? (ok ? "" : "Domain still invalid after AI repair."));
-      return { ok, text: fixed };
-    }
-    setDomainStatus("error");
-    setDomainMsg(res.message || "Domain invalid, and AI repair failed.");
-    return { ok: false, text: d };
-  } catch (e: any) {
-    setDomainStatus("error");
-    setDomainMsg(e?.message || "Domain validation failed.");
-    return { ok: false, text: d };
-  }
-};
-
-const ensureValidProblem = async (pText: string, dText: string): Promise<{ ok: boolean; text: string }> => {
-  const p = pText.trim();
-  const d = dText.trim();
-  if (!p) return { ok: false, text: "" };
-  setGenLabel("Validating…");
-  setProblemStatus("verification");
-  try {
-    if (d) {
-      try {
-        const match = await validateMatchPddl(d, p);
-        if (match.result === "success") {
-          setProblemStatus("verified");
-          setProblemMsg(match.message ?? "");
-          return { ok: true, text: p };
-        }
-      } catch { /* fall through to basic */ }
-    }
-    const basic = await validatePddl(p, "problem");
-    if (basic.result === "success" && d) {
-      setProblemStatus("error");
-      setProblemMsg("Syntax OK, but the problem does not match the current domain.");
-      return { ok: false, text: p };
-    }
-    if (basic.result === "success") {
-      setProblemStatus("verified");
-      setProblemMsg(basic.message ?? "");
-      return { ok: true, text: p };
-    }
-    setGenLabel("Fixing…");
-    const ai = await generateProblemFromNL(p, d || "", { attempts: 1, generate_both: false });
-    if (ai.result_status === "success" && ai.generated_problem) {
-      const fixed = ai.generated_problem.trim();
-      setProblem(fixed);
-      if (d) {
-        const match2 = await validateMatchPddl(d, fixed);
-        const ok = match2.result === "success";
-        setProblemStatus(ok ? "verified" : "error");
-        setProblemMsg(match2.message ?? (ok ? "" : "Problem still mismatched after AI repair."));
-        return { ok, text: fixed };
-      }
-      const basic2 = await validatePddl(fixed, "problem");
-      const ok = basic2.result === "success";
-      setProblemStatus(ok ? "verified" : "error");
-      setProblemMsg(basic2.message ?? (ok ? "" : "Problem still invalid after AI repair."));
-      return { ok, text: fixed };
-    }
-    setProblemStatus("error");
-    setProblemMsg(basic.message || "Problem invalid, and AI repair failed.");
-    return { ok: false, text: p };
-  } catch (e: any) {
-    setProblemStatus("error");
-    setProblemMsg(e?.message || "Problem validation failed.");
-    return { ok: false, text: p };
-  }
-};
-
-const [selectedPlanner, setSelectedPlanner] = useState<string>(() => {
-  try { return localStorage.getItem("pddl.selectedPlanner") || "auto"; } catch { return "auto"; }
-});
-
-const handleGeneratePlan = async () => {
-  if (!canGenerate || planPhase === "submitting" || planPhase === "polling") return;
-  setPlanPhase("submitting");
-  setPlanErr("");
-  try {
-    const dom = await ensureValidDomain(domain);
-    const prob = await ensureValidProblem(problem, dom.text);
-    if (!dom.ok || !prob.ok) {
-      setPlanPhase("error");
-      setPlanErr("Inputs are invalid even after AI repair.");
-      setGenLabel("Generate Plan");
-      return;
-    }
-    const d = dom.text.trim();
-    const p = prob.text.trim();
-    setGenLabel("Generating…");
-    savePddlSnapshot(d, p);
-    if (typeof savePddlLegacy === "function") savePddlLegacy({ domain: d, problem: p });
-    const opts: any = { convert_real_types: true };
-    if (selectedPlanner && selectedPlanner !== "auto") {
-      opts.planner = selectedPlanner;
-    }
-    const { id } = await generatePlan(d, p, opts);
-
-    savePlanJob(id, d, p);
-    startPolling(id);
-  } catch (e: any) {
-    setPlanPhase("error");
-    setPlanErr(e?.message || "Failed to start planning.");
-  }
-};
-
-
-  const handleRegenerate = () => {
-    if (pollTimer.current) clearInterval(pollTimer.current);
-    pollAbort.current?.abort();
-    setPlanId("");
-    setPlanErr("");
-    setPlanPhase("idle");
-    navigate("/pddl-edit", { replace: true });
-  };
-
 
   /* --------------------------------- UI ----------------------------------- */
 
@@ -919,7 +515,7 @@ const handleGeneratePlan = async () => {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ModeSlider<"AI" | "D">
+                <ModeSlider<DomainEditMode>
                   value={domainMode}
                   onChange={setDomainMode}
                   modes={[
@@ -941,7 +537,7 @@ const handleGeneratePlan = async () => {
                   setDomain(v);
                   setDomainStatus("idle");
                   setDomainMsg("");
-                  requestAnimationFrame(() => updateAtEnd(domainRef, setDomainAtEnd));
+                  requestAnimationFrame(() => updateDomainCaret());
                 }}
                 onSubmit={() => (domainMode === "AI" ? generateDomainNow(domain) : validateDomainNow(domain))}
                 placeholder={domainMode === "AI" ? "Describe the domain in natural language…" : "(define (domain ...))"}
@@ -952,15 +548,15 @@ const handleGeneratePlan = async () => {
                 statusPillPlacement="top-right"
                 statusHint={domainMsg || undefined}
                 spellCheck={domainMode === "AI"}
-                onKeyDown={() => updateAtEnd(domainRef, setDomainAtEnd)}
+                onKeyDown={() => updateDomainCaret()}
                 statusIcons={
-                domainMode === "AI"
-                  ? {
-                      verification: <span className="status-icon"><Spinner /></span>,
-                      aiThinking:  <span className="status-icon"><Brain /></span>,
-                    }
-                  : undefined
-              }
+                  domainMode === "AI"
+                    ? {
+                        verification: <span className="status-icon"><Spinner /></span>,
+                        aiThinking: <span className="status-icon"><Brain /></span>,
+                      }
+                    : undefined
+                }
               />
               <div className="field-hint">Hint: Type to enhance/correct..</div>
             </div>
@@ -1002,7 +598,7 @@ const handleGeneratePlan = async () => {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ModeSlider<"AI" | "P">
+                <ModeSlider<ProblemEditMode>
                   value={problemMode}
                   onChange={setProblemMode}
                   modes={[
@@ -1017,39 +613,39 @@ const handleGeneratePlan = async () => {
 
             {/* Body */}
             <div style={{ position: "relative", padding: 10 }}>
-            <Textarea
-              ref={problemRef}
-              value={problem}
-              onChange={(v) => {
-                setProblem(v);
-                setProblemStatus("idle");
-                setProblemMsg("");
-                requestAnimationFrame(() => updateAtEnd(problemRef, setProblemAtEnd));
-              }}
-              onSubmit={() =>
-                problemMode === "AI" ? generateProblemNow(problem, domain) : validateProblemNow(problem, domain)
-              }
-              placeholder={
-                problemMode === "AI" ? "Describe the goal in natural language…" : "(define (problem ...) (:domain ...))"
-              }
-              height={showMermaid ? "16vh" : "55vh"}
-              autoResize={false}
-              showStatusPill
-              status={problemStatus}
-              statusPillPlacement="top-right"
-              statusHint={problemMsg || undefined}
-              spellCheck={problemMode === "AI"}
-              onKeyDown={() => updateAtEnd(problemRef, setProblemAtEnd)}
-                              statusIcons={
-                domainMode === "AI"
-                  ? {
-                      verification: <span className="status-icon"><Brain/></span>,
-                      aiThinking:  <span className="status-icon"><Brain /></span>,
-                    }
-                  : undefined
-              }
+              <Textarea
+                ref={problemRef}
+                value={problem}
+                onChange={(v) => {
+                  setProblem(v);
+                  setProblemStatus("idle");
+                  setProblemMsg("");
+                  requestAnimationFrame(() => updateProblemCaret());
+                }}
+                onSubmit={() =>
+                  problemMode === "AI" ? generateProblemNow(problem, domain) : validateProblemNow(problem, domain)
+                }
+                placeholder={
+                  problemMode === "AI" ? "Describe the goal in natural language…" : "(define (problem ...) (:domain ...))"
+                }
+                height={showMermaid ? "16vh" : "55vh"}
+                autoResize={false}
+                showStatusPill
+                status={problemStatus}
+                statusPillPlacement="top-right"
+                statusHint={problemMsg || undefined}
+                spellCheck={problemMode === "AI"}
+                onKeyDown={() => updateProblemCaret()}
+                statusIcons={
+                  domainMode === "AI"
+                    ? {
+                        verification: <span className="status-icon"><Brain /></span>,
+                        aiThinking: <span className="status-icon"><Brain /></span>,
+                      }
+                    : undefined
+                }
               />
-            <div className="field-hint">Hint: PDDL Syntax gets autocorrected with AI...</div>
+              <div className="field-hint">Hint: PDDL Syntax gets autocorrected with AI...</div>
             </div>
           </section>
 
