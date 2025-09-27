@@ -15,6 +15,7 @@ import AddShortcutModal from "@/components/AddShortcutModal";
 import { useSlashMenu } from "@/hooks/useSlashMenu";
 import { useChatComposer } from "@/hooks/useChatComposer";
 import type { Mode } from "@/hooks/useChatComposer";
+import ActionBar from "@/components/layout/ActionBar";
 
 const ChatPage: React.FC = () => {
   const { name } = useTheme();
@@ -100,10 +101,9 @@ const ChatPage: React.FC = () => {
 
       <AddShortcutModal open={showCreate} onClose={() => setShowCreate(false)} onCreate={addShortcut} />
 
-      {/* Keeping existing FAB for now; layout modularization comes later */}
-      <div style={{ position: "fixed", left: "45%", right: 100, bottom: 10, zIndex: 40 }}>
+      <ActionBar>
         <PillButton to="/minizinc" ariaLabel="Go to MiniZinc Solver" label="Go to Solver" />
-      </div>
+      </ActionBar>
     </main>
   );
 };

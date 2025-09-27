@@ -6,6 +6,7 @@ import PillButton from "@/components/PillButton";
 import { generateSolution } from "@/api/pianista/generateSolution";
 import getSolution from "@/api/pianista/getSolution";
 import MiniZincEditorCard from "./minizinc/MiniZincEditorCard";
+import ActionBar from "@/components/layout/ActionBar";
 
 type Phase = "compose" | "result";
 type RunState = "idle" | "submitting" | "polling" | "error" | "done";
@@ -258,21 +259,13 @@ while (attempt < maxPolls && aliveRef.current) {
           </div>
         )}
       </div>
-            <div
-              style={{
-                position: "fixed",
-                left: "45%", 
-                right: 100,
-                bottom: 10,
-                zIndex: 40,
-              }}
-            >
-              <PillButton
-                to="/chat"
-                ariaLabel="Go to Chat"
-                label="Go to Chat"
-              />
-            </div>
+      <ActionBar>
+        <PillButton
+          to="/chat"
+          ariaLabel="Go to Chat"
+          label="Go to Chat"
+        />
+      </ActionBar>
     </main>
   );
 }

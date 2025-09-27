@@ -372,31 +372,27 @@ section[data-busy-glow="true"] {
   backdrop-filter: blur(6px);
   box-shadow: 0 2px 12px var(--color-shadow);
 }
-:root{
-  /* tweak this to nudge the dock horizontally relative to page center */
-  --actions-offset: 220px;
-}
-
-/* Floating actions dock at same level as footer (not fused) */
-.actions-dock {
+/* Floating actions bar shared across pages */
+.action-bar {
   position: fixed;
   left: 50%;
-  bottom: 3px;                 /* same bottom spacing as footer chip */
-  transform: translateX(var(--actions-offset));
-  z-index: 11;                 /* above content; below modals */
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  pointer-events: none;        /* so it doesn’t block page clicks... */
+  bottom: calc(56px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 11; /* above content; below modals */
+  width: min(100vw, 960px);
+  padding: 0 16px;
+  pointer-events: none; /* so it doesn’t block page clicks... */
+  display: flex;
+  justify-content: center;
 }
-.actions-dock > * { pointer-events: auto; } /* ...but its children do */
 
-/* optional: visually align height with footer chip without adding a box */
-.actions-dock .control-lane {
-  display: inline-flex;
+.action-bar__lane {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  height: 40px;                /* matches typical footer chip height */
+  justify-content: center;
+  gap: clamp(6px, 1.8vw, 14px);
+  pointer-events: auto; /* ...but its children do */
 }
 
 /* Reserve space for the reset icon button so layout doesn't jump */
