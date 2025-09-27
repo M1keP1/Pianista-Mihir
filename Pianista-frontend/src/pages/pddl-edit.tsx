@@ -4,10 +4,11 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import BrandLogo from "@/components/VS_BrandButton";
 import PillButton from "@/components/PillButton";
-import Textarea, { type TextAreaStatus } from "@/components/Inputbox/TextArea";
+import { type TextAreaStatus } from "@/components/Inputbox/TextArea";
 import ModeSlider from "@/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/components/MermaidPanel";
 import PlannerDropup from "../components/PlannerDropup";
+import EditorPanel from "@/components/pddl/EditorPanel";
 
 import { generateMermaid, type MermaidMode } from "@/api/pianista/generateMermaid";
 
@@ -487,168 +488,97 @@ export default function PddlEditPage() {
 
         {/* Editors row */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-          {/* Domain */}
-          <section
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border-muted)",
-              borderRadius: 12,
-              padding: 0,                      // ⬅ like MermaidPanel
-              boxShadow: "0 1.5px 10px var(--color-shadow)",
-              overflow: "hidden",              // ⬅ like MermaidPanel
+          <EditorPanel<DomainEditMode>
+            title="Domain"
+            accentColor="var(--color-accent)"
+            modeSliderProps={{
+              value: domainMode,
+              onChange: setDomainMode,
+              modes: [
+                { key: "AI", short: "AI", full: "Generate / Validate with AI" },
+                { key: "D", short: "D", full: "Write PDDL Domain" },
+              ],
+              size: "xs",
+              "aria-label": "Domain editor mode",
             }}
-          >
-            {/* Header (same structure & styling approach as MermaidPanel header) */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 10px",
-                borderBottom: "1px solid var(--color-border-muted)",
-                background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span aria-hidden style={{ width: 10, height: 10, borderRadius: 999, background: "var(--color-accent)" }} />
-                <strong>Domain</strong>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ModeSlider<DomainEditMode>
-                  value={domainMode}
-                  onChange={setDomainMode}
-                  modes={[
-                    { key: "AI", short: "AI", full: "Generate / Validate with AI" },
-                    { key: "D", short: "D", full: "Write PDDL Domain" },
-                  ]}
-                  size="xs"
-                  aria-label="Domain editor mode"
-                />
-              </div>
-            </div>
-
-            {/* Body */}
-            <div style={{ position: "relative", padding: 10 }}>
-              <Textarea
-                ref={domainRef}
-                value={domain}
-                onChange={(v) => {
-                  setDomain(v);
-                  setDomainStatus("idle");
-                  setDomainMsg("");
-                  requestAnimationFrame(() => updateDomainCaret());
-                }}
-                onSubmit={() => (domainMode === "AI" ? generateDomainNow(domain) : validateDomainNow(domain))}
-                placeholder={domainMode === "AI" ? "Describe the domain in natural language…" : "(define (domain ...))"}
-                height={showMermaid ? "16vh" : "55vh"}
-                autoResize={false}
-                showStatusPill
-                status={domainStatus}
-                statusPillPlacement="top-right"
-                statusHint={domainMsg || undefined}
-                spellCheck={domainMode === "AI"}
-                onKeyDown={() => updateDomainCaret()}
-                statusIcons={
-                  domainMode === "AI"
-                    ? {
-                        verification: <span className="status-icon"><Spinner /></span>,
-                        aiThinking: <span className="status-icon"><Brain /></span>,
-                      }
-                    : undefined
-                }
-              />
-              <div className="field-hint">Hint: Type to enhance/correct..</div>
-            </div>
-          </section>
-
-
-          {/* Problem */}
-          <section
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--color-border-muted)",
-              borderRadius: 12,
-              boxShadow: "0 1.5px 10px var(--color-shadow)",
-              overflow: "hidden",              // ⬅ like MermaidPanel
+            textareaRef={domainRef}
+            textareaProps={{
+              value: domain,
+              onChange: (v) => {
+                setDomain(v);
+                setDomainStatus("idle");
+                setDomainMsg("");
+                requestAnimationFrame(() => updateDomainCaret());
+              },
+              onSubmit: () => (domainMode === "AI" ? generateDomainNow(domain) : validateDomainNow(domain)),
+              placeholder: domainMode === "AI" ? "Describe the domain in natural language…" : "(define (domain ...))",
+              height: showMermaid ? "16vh" : "55vh",
+              autoResize: false,
+              showStatusPill: true,
+              status: domainStatus,
+              statusPillPlacement: "top-right",
+              statusHint: domainMsg || undefined,
+              spellCheck: domainMode === "AI",
+              onKeyDown: () => updateDomainCaret(),
+              statusIcons:
+                domainMode === "AI"
+                  ? {
+                      verification: <span className="status-icon"><Spinner /></span>,
+                      aiThinking: <span className="status-icon"><Brain /></span>,
+                    }
+                  : undefined,
             }}
-          >
-            {/* Header (same pattern) */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 10px",
-                borderBottom: "1px solid var(--color-border-muted)",
-                background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  aria-hidden
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 999,
-                    background: "color-mix(in srgb, var(--color-accent) 70%, #16a34a)",
-                  }}
-                />
-                <strong>Problem</strong>
-              </div>
+            hint="Hint: Type to enhance/correct.."
+          />
 
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <ModeSlider<ProblemEditMode>
-                  value={problemMode}
-                  onChange={setProblemMode}
-                  modes={[
-                    { key: "AI", short: "AI", full: "Generate / Validate with AI" },
-                    { key: "P", short: "P", full: "Write PDDL Problem" },
-                  ]}
-                  size="xs"
-                  aria-label="Problem editor mode"
-                />
-              </div>
-            </div>
-
-            {/* Body */}
-            <div style={{ position: "relative", padding: 10 }}>
-              <Textarea
-                ref={problemRef}
-                value={problem}
-                onChange={(v) => {
-                  setProblem(v);
-                  setProblemStatus("idle");
-                  setProblemMsg("");
-                  requestAnimationFrame(() => updateProblemCaret());
-                }}
-                onSubmit={() =>
-                  problemMode === "AI" ? generateProblemNow(problem, domain) : validateProblemNow(problem, domain)
-                }
-                placeholder={
-                  problemMode === "AI" ? "Describe the goal in natural language…" : "(define (problem ...) (:domain ...))"
-                }
-                height={showMermaid ? "16vh" : "55vh"}
-                autoResize={false}
-                showStatusPill
-                status={problemStatus}
-                statusPillPlacement="top-right"
-                statusHint={problemMsg || undefined}
-                spellCheck={problemMode === "AI"}
-                onKeyDown={() => updateProblemCaret()}
-                statusIcons={
-                  domainMode === "AI"
-                    ? {
-                        verification: <span className="status-icon"><Brain /></span>,
-                        aiThinking: <span className="status-icon"><Brain /></span>,
-                      }
-                    : undefined
-                }
-              />
-              <div className="field-hint">Hint: PDDL Syntax gets autocorrected with AI...</div>
-            </div>
-          </section>
-
+          <EditorPanel<ProblemEditMode>
+            title="Problem"
+            accentColor="color-mix(in srgb, var(--color-accent) 70%, #16a34a)"
+            modeSliderProps={{
+              value: problemMode,
+              onChange: setProblemMode,
+              modes: [
+                { key: "AI", short: "AI", full: "Generate / Validate with AI" },
+                { key: "P", short: "P", full: "Write PDDL Problem" },
+              ],
+              size: "xs",
+              "aria-label": "Problem editor mode",
+            }}
+            textareaRef={problemRef}
+            textareaProps={{
+              value: problem,
+              onChange: (v) => {
+                setProblem(v);
+                setProblemStatus("idle");
+                setProblemMsg("");
+                requestAnimationFrame(() => updateProblemCaret());
+              },
+              onSubmit: () =>
+                problemMode === "AI"
+                  ? generateProblemNow(problem, domain)
+                  : validateProblemNow(problem, domain),
+              placeholder:
+                problemMode === "AI"
+                  ? "Describe the goal in natural language…"
+                  : "(define (problem ...) (:domain ...))",
+              height: showMermaid ? "16vh" : "55vh",
+              autoResize: false,
+              showStatusPill: true,
+              status: problemStatus,
+              statusPillPlacement: "top-right",
+              statusHint: problemMsg || undefined,
+              spellCheck: problemMode === "AI",
+              onKeyDown: () => updateProblemCaret(),
+              statusIcons:
+                problemMode === "AI"
+                  ? {
+                      verification: <span className="status-icon"><Brain /></span>,
+                      aiThinking: <span className="status-icon"><Brain /></span>,
+                    }
+                  : undefined,
+            }}
+            hint="Hint: PDDL Syntax gets autocorrected with AI..."
+          />
         </div>
 
         {/* Spacer so content never hides behind the fixed footer/actions */}
