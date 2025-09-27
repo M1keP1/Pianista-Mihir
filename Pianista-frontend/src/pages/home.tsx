@@ -3,7 +3,6 @@ import React from "react";
 import { useTheme } from "../themeContext";
 import PillButton from "../components/PillButton";
 
-// Swap to your actual asset paths
 import logoLightBg from "../assets/pianista_logo_black.png";
 import logoDarkBg  from "../assets/pianista_logo_white.png";
 import BrandLogo from "@/components/VS_BrandButton";
@@ -67,7 +66,6 @@ const Home: React.FC = () => {
         <PillButton
             label="?"
             href="https://visionspace.com/our-services/product-pianista/"
-            external
             ariaLabel="Learn more about Pianista"
         />
 
