@@ -110,6 +110,7 @@ export default function PddlEditPage() {
   } = useMermaidPreview({ domain, problem });
 
   const canGenerate = !!domain.trim() && !!problem.trim();
+  const canRegenerate = planPhase === "success";
 
   /* --------------------------------- UI ----------------------------------- */
 
@@ -187,18 +188,17 @@ export default function PddlEditPage() {
           )}
           {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
           <div className="reset-slot">
-            {planPhase === "success" && (
-              <PillButton
-                onClick={handleRegenerate}
-                iconOnly
-                rightIcon={<Reload className="icon-accent"/>}
-                ariaLabel="Clear Plan"
-                style={{
-                    width: 30,
-                    height: 30,
-                }}
-              />
-            )}
+            <PillButton
+              onClick={canRegenerate ? handleRegenerate : undefined}
+              iconOnly
+              rightIcon={<Reload className="icon-accent" />}
+              ariaLabel="Clear Plan"
+              style={{
+                width: 30,
+                height: 30,
+              }}
+              disabled={!canRegenerate}
+            />
           </div>
         </div>
       </div>
