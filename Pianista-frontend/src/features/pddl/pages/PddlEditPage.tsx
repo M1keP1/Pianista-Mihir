@@ -1,7 +1,6 @@
 // src/pages/pddl-edit.tsx
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import BrandLogo from "@/shared/components/VS_BrandButton";
 import PillButton from "@/shared/components/PillButton";
 import ModeSlider from "@/shared/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/features/pddl/components/MermaidPanel";
@@ -12,6 +11,7 @@ import Spinner from "@/shared/components/icons/Spinner";
 import Brain from "@/shared/components/icons/Brain";
 import Check from "@/shared/components/icons/Check";
 import Reload from "@/shared/components/icons/Reload";
+import Plus from "@/shared/components/icons/Plus";
 import ActionBar from "@/shared/components/layout/ActionBar";
 
 import { useTwoModeAutoDetect, type TwoMode } from "@/features/pddl/hooks/useTwoModeAutoDetect";
@@ -132,9 +132,15 @@ export default function PddlEditPage() {
         paddingBottom: floatingControlsClearance,
       }}
     >
-      <BrandLogo />
-
       <ActionBar>
+        <PillButton
+          iconOnly
+          ariaLabel="Start a new chat"
+          title="Start a new chat"
+          onClick={() => navigate("/chat")}
+          leftIcon={<Plus className="icon-accent" />}
+        />
+
         {/* View toggle button */}
         {isMermaidOpen ? (
           <PillButton

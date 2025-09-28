@@ -7,6 +7,8 @@ export type PillButtonProps = {
   label?: string;
   /** Accessible label (required when iconOnly = true) */
   ariaLabel?: string;
+  /** Native tooltip when hovering */
+  title?: string;
   to?: string;
   /** Optional icons */
   leftIcon?: React.ReactNode;
@@ -52,6 +54,7 @@ export default function PillButton({
   to,
   target,
   rel,
+  title,
   type = "button",
   className,
   style,
@@ -153,6 +156,7 @@ export default function PillButton({
         onClick={onClick as any}
         className={className}
         style={mergedStyle}
+        title={title}
         {...commonHandlers}
       >
         {content}
@@ -171,6 +175,7 @@ export default function PillButton({
         onClick={onClick as any}
         className={className}
         style={mergedStyle}
+        title={title}
         {...commonHandlers}
       >
         {content}
@@ -186,6 +191,7 @@ export default function PillButton({
       onClick={onClick as any}
       className={className}
       style={mergedStyle}
+      title={title}
       {...commonHandlers}
     >
       {content}
