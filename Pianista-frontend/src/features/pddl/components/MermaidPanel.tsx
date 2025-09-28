@@ -273,7 +273,15 @@ function MermaidGraph({
   onRetry?: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [error, setError] = useState<string>("");
+  const [hasError, setHasError] = useState(false);
+
+  const removeErrorArtifacts = () => {
+    try {
+      document.querySelectorAll('svg[aria-roledescription="error"]').forEach((el) => el.remove());
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -284,6 +292,11 @@ function MermaidGraph({
       /* ignore init errors; parse/render will surface issues */
     }
 
+    const mmAny = mermaid as any;
+    if (typeof mmAny.parseError === "function") {
+      mmAny.parseError = () => {};
+    }
+
     const base = sanitizeMermaidSource(mermaidText || "");
     const withHeader = ensureOneDirective(base, direction);
     const src = transform ? transform(withHeader) : withHeader;
@@ -291,13 +304,21 @@ function MermaidGraph({
     const render = async () => {
       if (!ref.current) return;
       ref.current.innerHTML = "";
-      setError("");
+      setHasError(false);
+      removeErrorArtifacts();
+      window.setTimeout(removeErrorArtifacts, 0);
 
       // Pre-parse for clearer errors (Mermaid v11)
       try {
         (mermaid as any).parse?.(src);
       } catch (e: any) {
-        if (!cancelled) setError((e?.str || e?.message || "Syntax error in Mermaid text.").trim());
+        console.error("Mermaid parse error", e);
+        if (!cancelled) {
+          setHasError(true);
+          ref.current.innerHTML = "";
+          removeErrorArtifacts();
+          window.setTimeout(removeErrorArtifacts, 0);
+        }
         return;
       }
 
@@ -314,7 +335,13 @@ function MermaidGraph({
           (svgEl as SVGElement).style.transition = "opacity 160ms ease";
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Render failed.");
+        console.error("Mermaid render error", e);
+        if (!cancelled) {
+          setHasError(true);
+          if (ref.current) ref.current.innerHTML = "";
+          removeErrorArtifacts();
+          window.setTimeout(removeErrorArtifacts, 0);
+        }
       }
     };
 
@@ -339,38 +366,33 @@ function MermaidGraph({
     >
       <div ref={ref} style={{ minHeight: "100%", padding: 8 }} />
 
-      {/* Minimal, anchored error toast with optional Retry */}
-      {error && (
+      {/* Subtle error indicator without exposing library error text */}
+      {hasError && (
         <div
-          role="alert"
+          role="status"
           style={{
             position: "absolute",
             left: 12,
             bottom: 12,
-            maxWidth: "80%",
-            padding: "8px 10px",
-            borderRadius: 8,
-            background: "color-mix(in srgb, #ef4444 12%, var(--color-surface))",
-            border: "1px solid color-mix(in srgb, #ef4444 40%, var(--color-border-muted))",
-            color: "var(--color-text)",
-            fontSize: 12,
-            boxShadow: "0 6px 24px rgba(0,0,0,.25)",
-            pointerEvents: "auto",
             display: "flex",
             alignItems: "center",
             gap: 10,
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: "color-mix(in srgb, #ef4444 10%, var(--color-surface))",
+            border: "1px solid color-mix(in srgb, #ef4444 35%, var(--color-border-muted))",
+            color: "var(--color-text)",
+            fontSize: 12,
+            pointerEvents: "auto",
+            boxShadow: "0 4px 18px rgba(0,0,0,.18)",
           }}
         >
-          <span style={{ opacity: 0.9 }}>Mermaid error:</span>
-          <code style={{ whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden", maxWidth: 420 }}>
-            {truncate(error, 200)}
-          </code>
+          <span style={{ fontWeight: 600 }}>Mermaid graph unavailable</span>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
               style={{
-                marginLeft: 6,
                 fontSize: 11,
                 padding: "4px 8px",
                 borderRadius: 6,
@@ -419,6 +441,3 @@ function ensureOneDirective(src: string, direction: "TB" | "LR" | "BT" | "RL") {
   return out.join("\n");
 }
 
-function truncate(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + "… " : s;
-}
