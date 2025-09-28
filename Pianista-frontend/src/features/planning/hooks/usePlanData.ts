@@ -13,6 +13,11 @@ import {
 } from "@/shared/lib/pddlStore";
 import { adaptPlannerResponse, type PlanData } from "@/features/planning/lib/plannerAdapter";
 
+/**
+ * Orchestrates everything needed to view a planner job: loads cached results,
+ * polls Pianista when the plan is still in flight, keeps a JSON adaptation in
+ * sync with the raw text, and exposes helpers for validating/rewriting plans.
+ */
 export function usePlanData(job: string) {
   const [planJsonText, setPlanJsonText] = useState<string>("");
   const [rawPlan, setRawPlan] = useState<string>("");
