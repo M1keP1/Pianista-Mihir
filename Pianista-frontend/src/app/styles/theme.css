@@ -411,6 +411,20 @@ section[data-busy-glow="true"] {
   .reset-slot { width: 40px; flex-basis: 40px; }
 }
 
+.back-to-chat-wrapper {
+  position: fixed;
+  left: clamp(16px, 4vw, 48px);
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  z-index: 10;
+}
+
+@media (max-width: 420px) {
+  .back-to-chat-wrapper {
+    bottom: calc(env(safe-area-inset-bottom) + 108px);
+    left: clamp(12px, 6vw, 32px);
+  }
+}
+
 .icon-accent {
   color: var(--color-accent);
 }

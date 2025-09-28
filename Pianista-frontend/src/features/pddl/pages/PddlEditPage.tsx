@@ -206,14 +206,7 @@ export default function PddlEditPage() {
 
       </ActionBar>
 
-      <div
-        style={{
-          position: "fixed",
-          left: "clamp(16px, 4vw, 48px)",
-          bottom: "calc(env(safe-area-inset-bottom) + 16px)",
-          zIndex: 10,
-        }}
-      >
+      <div className="back-to-chat-wrapper">
         <PillButton
           to="/chat"
           label="Back to Chat"
