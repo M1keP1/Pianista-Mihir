@@ -1,4 +1,4 @@
-// src/api/pianista/generateDomain.ts
+/** Generates a PDDL domain from natural language input. */
 export type GenerateDomainResponse = {
   result_status: "success" | "failure";
   generated_domain?: string;

@@ -1,4 +1,7 @@
-// Backdrop.tsx
+/**
+ * Provides a persistent background layer so theme transitions happen behind
+ * the routed pages without flashing the browser default color.
+ */
 import React from "react";
 
 const Backdrop: React.FC = () => (

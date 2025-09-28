@@ -1,3 +1,4 @@
+/** Stores slash shortcuts in localStorage and merges them with defaults. */
 import { useEffect, useMemo, useState } from "react";
 import defaults from "@/features/chat/data/shortcuts.json";
 

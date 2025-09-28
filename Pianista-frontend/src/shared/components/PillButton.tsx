@@ -1,4 +1,7 @@
-// src/components/PillButton.tsx
+/**
+ * Theme-aware pill CTA that shares hover/active motion across links and
+ * buttons while enforcing accessibility for icon-only usages.
+ */
 import * as React from "react";
 import { Link } from "react-router-dom";
 

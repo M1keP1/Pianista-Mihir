@@ -1,3 +1,7 @@
+/**
+ * Auto-detects the right processing mode from the live textarea contents while
+ * respecting short-lived manual overrides.
+ */
 import { useEffect, useRef, useState } from "react";
 import { detectProcessingMode, type ProcessingMode } from "@/features/chat/lib/detectProcessingMode";
 
@@ -20,14 +24,14 @@ export default function useModeDetection(
   const [mode, setMode] = useState<ProcessingMode>(initial);
   const lastManualRef = useRef<number>(0);
 
-  // manual setter (pauses auto briefly)
+  // Manual overrides pause auto-detection so the slider doesn't fight the user.
   const setManual = (m: ProcessingMode) => {
     setMode((prev) => (prev === m ? prev : m));
     lastManualRef.current = Date.now();
     onChange?.(m, "manual");
   };
 
-  // auto detect on text change
+  // Resume auto-detection once the manual priority window expires.
   useEffect(() => {
     if (!autoDetect) return;
     const sinceManual = Date.now() - lastManualRef.current;

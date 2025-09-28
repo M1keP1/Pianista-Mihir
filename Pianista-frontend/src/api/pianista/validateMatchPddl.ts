@@ -1,4 +1,4 @@
-// src/api/validateMatchPddl.ts
+/** Confirms that a domain/problem pair are structurally compatible. */
 export type ValidateMatchResponse = {
   result: "success" | "failure";
   pddl_type: string | null;   // backend sends "problem" on success

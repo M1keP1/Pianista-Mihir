@@ -1,4 +1,4 @@
-// src/pages/pddl-edit.tsx
+/** Primary PDDL workspace combining editors, planners, and Mermaid previews. */
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import PillButton from "@/shared/components/PillButton";
@@ -91,7 +91,7 @@ export default function PddlEditPage() {
         ["--contentH" as any]: `calc(100vh - ${PAGE_PT}px - ${FOOTER_RESERVE}px)`,
       }}
     >
-      {/* Fixed compact Action Bar */}
+      {/* Fixed action bar keeps primary actions reachable during long edits. */}
       <ActionBar
       className="frosted-card"
         style={{

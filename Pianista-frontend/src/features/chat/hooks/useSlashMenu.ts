@@ -1,4 +1,7 @@
-// src/hooks/useSlashMenu.ts
+/**
+ * Tracks the textarea caret for `/` commands and exposes a keyboard-friendly
+ * command palette anchored to the caret position.
+ */
 import { useEffect, useMemo, useState } from "react";
 
 type ShortcutItem = { id: string; name: string; text: string };
@@ -47,7 +50,8 @@ export function useSlashMenu(
     setStart(state.start);
     setQuery(state.query);
 
-    // Position under caret
+    // Mirror the textarea styles into a hidden element so we can measure the
+    // caret position—browsers don't expose that geometry directly.
     const cs = getComputedStyle(el);
     const mirror = document.createElement("div");
     mirror.style.position = "absolute";

@@ -1,4 +1,7 @@
-// src/components/PianistaFooter.tsx
+/**
+ * Sticky footer that brands the experience and surfaces planner health without
+ * forcing users to leave the page.
+ */
 import React from "react";
 import { useTheme } from "@/app/providers/ThemeProvider";
 import { pingPlanner } from "@/api/pianista/health";
@@ -6,7 +9,7 @@ import { pingPlanner } from "@/api/pianista/health";
 type UiStatus = "checking" | "ok" | "down";
 
 const PianistaFooter: React.FC = () => {
-  useTheme(); // ensures data-theme gets applied
+  useTheme(); // Touch the theme context so CSS variables stay in sync here.
 
   const [ui, setUi] = React.useState<UiStatus>("checking");
   const [hint, setHint] = React.useState<string>("");
@@ -30,8 +33,8 @@ const PianistaFooter: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    check();                   // initial ping
-    const id = setInterval(check, 1000000000); // ping every 60s
+    check(); // Kick off an immediate ping so the status pill never shows stale data.
+    const id = setInterval(check, 60_000); // Refresh roughly once a minute to catch outages quickly.
     return () => clearInterval(id);
   }, [check]);
 
@@ -42,7 +45,7 @@ const PianistaFooter: React.FC = () => {
       ? "var(--color-danger, #dc2626)"
       : "var(--color-warning, #f59e0b)";
 
-  // (used only for a11y)
+  // Used for aria-label only—visual label stays terse.
   const a11yLabel =
     ui === "ok" ? "Online" : ui === "down" ? "Offline" : "Checking";
 
@@ -83,10 +86,10 @@ const PianistaFooter: React.FC = () => {
         <span style={{ color: "var(--color-text)" }}>VisionSpace™</span>
         <span>· All rights reserved</span>
 
-        {/* spacer dot before chip */}
+        {/* Visual separator before the status chip so the row keeps rhythm. */}
         <span aria-hidden>·</span>
 
-        {/* API status chip (right-aligned end of row) */}
+        {/* Status chip sits at the far right to minimize layout jitter when hint text changes. */}
         <div
           className="footer-status-chip"
           style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
@@ -118,10 +121,10 @@ const PianistaFooter: React.FC = () => {
                     : "none",
               }}
             />
-            {/* keep only the short label */}
+            {/* Keep the label short so repeated status polls do not widen the chip. */}
             <span style={{ color: "var(--color-text)" }}>API</span>
 
-            {/* Hover hint (tooltip) */}
+            {/* Lightweight tooltip instead of a modal keeps retries fast and unobtrusive. */}
             <div
               className="footer-status-tooltip"
               role="status"
@@ -157,7 +160,7 @@ const PianistaFooter: React.FC = () => {
           </button>
         </div>
 
-        {/* tooltip hover CSS */}
+        {/* Hover styles live inline so the tooltip works without extra CSS dependencies. */}
         <style>
           {`
             .footer-status-chip:hover .footer-status-tooltip {

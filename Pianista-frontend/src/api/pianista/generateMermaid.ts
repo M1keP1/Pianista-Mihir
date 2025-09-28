@@ -1,4 +1,4 @@
-// src/api/pianista/generateMermaid.ts
+/** Requests a Mermaid diagram representation for the supplied planning data. */
 export type MermaidMode = "none" | "domain" | "problem" | "plan";
 
 export type GenerateMermaidResult = {

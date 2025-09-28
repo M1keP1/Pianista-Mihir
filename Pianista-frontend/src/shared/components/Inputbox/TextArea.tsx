@@ -1,4 +1,7 @@
-// src/components/Inputbox/TextArea.tsx
+/**
+ * Application textarea that auto-resizes, surfaces async status, and harmonises
+ * send shortcuts across the app.
+ */
 import React, {
   useEffect,
   useMemo,
@@ -11,7 +14,7 @@ import useSubmitShortcut, {
   type SubmitShortcut,
 } from "@/shared/hooks/useSubmitShortcut";
 
-// Separate icon components (no inline SVG)
+// Keep icons modular so we can reuse them and keep markup accessible.
 import Check from "@/shared/components/icons/Check";
 import Cross from "@/shared/components/icons/Cross";
 import Spinner from "@/shared/components/icons/Spinner";
@@ -136,7 +139,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     []
   );
 
-  // Auto-resize (downwards only, clamped to maxRows)
+  // Auto-resize downwards so the caret stays in view without shrinking once expanded.
   const measureAndResize = () => {
     const el = elRef.current;
     if (!el || !shouldAutoResize) return;
@@ -224,7 +227,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       }
     : {};
 
-  // 🔑 Default Enter→send behavior (Shift+Enter = newline)
+  // 🔑 Route Enter presses through the shared shortcut helper for consistent UX.
   const internalKeyDown =
     onSubmit &&
     useSubmitShortcut(() => {
@@ -236,7 +239,7 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
     onKeyDown && onKeyDown(e);
   };
 
-  // Auto-select icon (overridable via statusIcons)
+  // Auto-select icon (overridable via statusIcons).
   const iconNode =
     status === "verification"
       ? (statusIcons?.verification ?? <span className="status-icon spin"><Spinner /></span>)
@@ -248,11 +251,11 @@ const Textarea = forwardRef<TextareaHandle, TextareaProps>(function Textarea(
       ? (statusIcons?.aiThinking ?? <span className="status-icon"><Brain /></span>)
       : null;
 
-  // Auto-map glow from status if not manually provided
+  // Auto-map glow from status if not manually provided.
   const effectiveGlow: GlowState | undefined =
     glowState ?? (status !== "idle" ? (status as GlowState) : undefined);
 
-  // CSS-only pill
+  // CSS-only pill keeps DOM light while still communicating async progress.
   const pill =
     showStatusPill && status !== "idle" ? (
       <div

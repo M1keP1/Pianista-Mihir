@@ -1,4 +1,4 @@
-// src/lib/pddl/utils.ts
+/** PDDL parsing helpers shared across chat and editor flows. */
 export function nextDefineIndex(text: string, from: number) {
   const re = /\(define\s*\(/g;
   re.lastIndex = Math.max(0, from);

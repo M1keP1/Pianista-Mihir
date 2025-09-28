@@ -1,4 +1,4 @@
-// src/api/pianista/generateSolution.ts
+/** Enqueues a MiniZinc solve and returns the queued job id. */
 export type GenerateSolutionResponse = { id: string };
 
 const BASE = import.meta.env.VITE_PIANISTA_BASE;

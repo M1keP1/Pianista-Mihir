@@ -1,4 +1,4 @@
-// src/components/gantt-lite.tsx
+/** Lightweight Gantt renderer tuned for planner output with synced scrollbars. */
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GanttHeader from "./GanttHeader";
@@ -140,9 +140,9 @@ const GanttLite: React.FC<GanttLiteProps> = ({
         onPxPerUnitChange={(value) => setPxPerUnit(value)}
       />
 
-      {/* Body */}
+      {/* Timeline layout keeps the lane list and scrollable chart perfectly in sync. */}
       <div style={{ display: "grid", gridTemplateColumns: `${laneColumnWidth}px 1fr`, minHeight: 0, flex: 1 }}>
-        {/* LHS lanes (rails aligned to timeline) */}
+        {/* Left column mirrors the timeline scroll to keep lane labels aligned. */}
         <div
         ref={lanesRef}
         onScroll={onLanesScroll}
@@ -150,12 +150,12 @@ const GanttLite: React.FC<GanttLiteProps> = ({
         style={{ overflowY: "auto", overflowX: "hidden", borderRight: "1px solid var(--color-border-muted)", background: "transparent", minHeight: 0 }}
         >
 
-          {showRuler && <div style={{ height: 36 }} />} {/* ruler spacer */}
+          {showRuler && <div style={{ height: 36 }} />} {/* Spacer so ruler doesn't overlap first lane. */}
           {processed.lanes.map((lane) => {
             const laneTotalH = HEADER_SPACER + lane.maxRows * rowHeight;
             return (
               <div key={lane.name} style={{ position: "relative", height: laneTotalH, borderBottom: "1px dashed var(--color-border-muted)" }}>
-                {/* lane label */}
+                {/* Lane label floats mid-column for readability regardless of task count. */}
                 <div
                   style={{
                     position: "absolute", top: "50%", left: 10, right: 10,
@@ -167,8 +167,8 @@ transform: "translateY(-50%)",
                   {lane.name}
                 </div>
 
-                {/* horizontal rails */}
-                {/* rails (skip r=0 to remove the top line above the lane) */}
+                {/* Draw faint rails to hint at stacking positions without adding heavy chrome. */}
+                {/* Skip the very top line so the lane header feels open. */}
                 {Array.from({ length: lane.maxRows }).map((_, i) => {
                 const r = i + 1; // 1..maxRows
                 return (
@@ -189,7 +189,7 @@ transform: "translateY(-50%)",
           })}
         </div>
 
-        {/* Timeline */}
+        {/* Timeline column renders the ruler and stacked tasks. */}
         <div
         ref={scrollRef}
         onWheel={onWheel}
@@ -198,7 +198,7 @@ transform: "translateY(-50%)",
         style={{ position: "relative", overflow: "auto", background: "transparent", minHeight: 0, contain: "layout paint" }}
         >
 
-          {/* Ruler */}
+          {/* Optional ruler provides temporal context without forcing tooltips. */}
           {showRuler && (
             <div style={{ position: "sticky", top: 0, zIndex: 3, ...timelineHeaderStyle }}>
               <div style={{ position: "relative", height: 36, width: contentWidth }}>
@@ -217,9 +217,9 @@ transform: "translateY(-50%)",
             </div>
           )}
 
-          {/* Rows + bars */}
+          {/* Row area hosts both the grid lines and the actual task bars. */}
           <div style={{ position: "relative" }}>
-            {/* vertical grid */}
+            {/* Vertical dividers help eyeball durations at common intervals. */}
             <div style={{ position: "absolute", inset: 0, width: contentWidth, zIndex: 0 }}>
               {ticks.map((t) => {
                 const x = xSnap(t);
@@ -237,7 +237,7 @@ transform: "translateY(-50%)",
               })}
             </div>
 
-            {/* lanes */}
+            {/* Each lane gets its own absolute-positioned canvas for tasks. */}
             <div style={{ position: "relative", zIndex: 1 }}>
               {processed.lanes.map((lane) => (
                 <div
@@ -249,8 +249,8 @@ transform: "translateY(-50%)",
                     height: HEADER_SPACER + lane.maxRows * rowHeight,
                   }}
                 >
-                  {/* rails */}
-                    {/* rails (skip top line) */}
+                  {/* Per-row rail ensures multi-row lanes stay visually grouped. */}
+                    {/* Skip the top border to avoid double-thick separators. */}
                     {Array.from({ length: lane.maxRows }).map((_, i) => {
                     const r = i + 1; // 1..maxRows
                     return (
@@ -267,7 +267,7 @@ transform: "translateY(-50%)",
                     })}
 
 
-                  {/* bars */}
+                  {/* Task bars render above the grid so hover/tap interactions stay smooth. */}
                   {lane.tasks.map((tk) => {
                     const { left, width } = barBox(tk.start, tk.duration);
 
@@ -354,7 +354,7 @@ transform: "translateY(-50%)",
             </div>
           </div>
 
-          {/* Tooltip */}
+          {/* Tooltip lives in a portal so it can escape overflow clipping. */}
           {showTooltips && tip &&
             createPortal(
               <div

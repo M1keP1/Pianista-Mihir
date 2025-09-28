@@ -1,4 +1,4 @@
-// src/pages/plan.tsx
+/** Plan viewer that toggles between raw output, JSON, and timeline views. */
 import { useSearchParams } from "react-router-dom";
 
 import PillButton from "@/shared/components/PillButton";
@@ -51,9 +51,9 @@ export default function PlanPage() {
       .raw-fill-abs textarea { height: 100% !important; }
       `}</style>
 
-      {/* Content (wider & taller than before) */}
+      {/* Content rail stays wide so the Gantt timeline has breathing room. */}
       <div style={{ display: "grid", gap: "12px", width: "min(1400px, 96vw)" }}>
-        {/* Plan Container */}
+        {/* Card container keeps all plan views aligned under a common header. */}
         <section
           style={{
             background: "var(--color-surface)",
@@ -64,7 +64,7 @@ export default function PlanPage() {
             overflow: "hidden",
           }}
         >
-          {/* Header */}
+          {/* Header hosts the mode picker and status affordances. */}
           <div
             style={{
               display: "flex",
@@ -76,7 +76,7 @@ export default function PlanPage() {
                 "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
             }}
           >
-            {/* Title (left) */}
+            {/* Title cluster includes a subtle status dot for visual context. */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span
                 aria-hidden
@@ -114,7 +114,7 @@ export default function PlanPage() {
             </div>
           </div>
 
-          {/* Body */}
+          {/* Body area swaps between whichever view the user selects. */}
           <div style={{ position: "relative", padding: 10, minHeight: 520 }}>
             {view === "raw" && (
               <div

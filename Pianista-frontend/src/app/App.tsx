@@ -1,3 +1,7 @@
+/**
+ * Top-level router that stitches feature pages together while keeping global
+ * chrome (backdrop, theme toggle, footer, notifications) in a single place.
+ */
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 

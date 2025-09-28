@@ -1,4 +1,4 @@
-// src/api/pianista/generatePlan.ts
+/** Enqueues a PDDL planning job and returns the job id. */
 export type GeneratePlanResponse = { id: string };
 
 const BASE = import.meta.env.VITE_PIANISTA_BASE;

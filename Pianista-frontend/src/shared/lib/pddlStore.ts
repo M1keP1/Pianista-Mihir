@@ -1,4 +1,4 @@
-// src/lib/pddlStore.ts
+/** LocalStorage helpers for persisting chat, editor, and planning context. */
 
 /** ------------------------ Types ------------------------ */
 export type ChatInputType = "nl" | "mermaid" | "domain" | "pddl" | "unknown";

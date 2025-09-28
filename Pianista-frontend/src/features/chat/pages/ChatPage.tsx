@@ -1,3 +1,7 @@
+/**
+ * Chat workspace that coordinates composer state, slash shortcuts, and mode
+ * detection in one place.
+ */
 import React from "react";
 import { useTheme } from "@/app/providers/ThemeProvider";
 
@@ -24,13 +28,13 @@ const ChatPage: React.FC = () => {
   const pianistaLogo = name === "light" ? logoLightBg : logoDarkBg;
   const SHIFT_UP = "-10vh";
 
-  // 1) Composer first — we need `text` for auto-detect
+  // Initialise the composer first so downstream hooks see the latest text.
   const { text, setText, resetIfCleared, submit, status, statusHint } = useChatComposer();
 
-  // 2) Auto-detection reads the live textarea text
+  // Feed the live text into the mode detector to auto-suggest the right pipeline.
   const { mode, setManual } = useModeDetection(text, { initial: "AI", autoDetect: true, manualPriorityMs: 1200 });
 
-  // 3) Shortcuts + slash menu (DOM-caret anchored)
+  // Drive slash shortcuts from the DOM caret so insertions land exactly where the user expects.
   const { all: shortcuts, addShortcut } = useShortcuts();
   const textareaRef = React.useRef<{ textarea: HTMLTextAreaElement | null }>(null!);
   const slash = useSlashMenu(textareaRef, text, (next) => setText(next), shortcuts as any);
