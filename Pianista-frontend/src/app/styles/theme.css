@@ -373,17 +373,17 @@ section[data-busy-glow="true"] {
   box-shadow: 0 2px 12px var(--color-shadow);
 }
 /* Floating actions bar shared across pages */
+
 .action-bar {
   position: fixed;
-  left: 50%;
+  right: clamp(16px, 4vw, 48px);
   bottom: calc(56px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
   z-index: 11; /* above content; below modals */
-  width: min(100vw, 960px);
+  width: min(90vw, 480px);
   padding: 0 16px;
   pointer-events: none; /* so it doesn’t block page clicks... */
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .action-bar__lane {
@@ -393,6 +393,10 @@ section[data-busy-glow="true"] {
   justify-content: center;
   gap: clamp(6px, 1.8vw, 14px);
   pointer-events: auto; /* ...but its children do */
+  background-color: var(--color-bg);
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-shadow) 70%, transparent);
 }
 
 /* Reserve space for the reset icon button so layout doesn't jump */
