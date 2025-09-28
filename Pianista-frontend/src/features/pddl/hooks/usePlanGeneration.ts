@@ -50,6 +50,11 @@ export type UsePlanGenerationResult = {
 
 const SELECTED_PLANNER_KEY = "pddl.selectedPlanner";
 
+/**
+ * End-to-end handler for the "Generate Plan" button. Validates/fixes PDDL,
+ * submits generation requests, polls Pianista until the job completes, and
+ * syncs everything back into navigation + local storage for later viewing.
+ */
 export function usePlanGeneration({
   domain,
   problem,

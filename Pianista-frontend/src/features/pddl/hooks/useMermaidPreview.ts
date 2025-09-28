@@ -5,6 +5,11 @@ import type { MermaidUiMode } from "./mermaidPreview/types";
 
 export type { MermaidUiMode } from "./mermaidPreview/types";
 
+/**
+ * Glue between the PDDL editor and the Mermaid preview modal. Tracks whether
+ * the preview is open, decides if conversion is possible, and fans out to the
+ * shared request controller to fetch/cancel Mermaid diagrams.
+ */
 export function useMermaidPreview({
   domain,
   problem,

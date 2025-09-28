@@ -39,6 +39,11 @@ type ControllerDeps = {
   fetchMermaid?: typeof generateMermaid;
 };
 
+/**
+ * Lightweight state container that powers Mermaid previews. Manages caching,
+ * abortable network requests, manual overrides, and subscribers so multiple
+ * components can stay in sync without each reimplementing the workflow.
+ */
 export function createMermaidRequestController(
   initialDomain: string,
   initialProblem: string,
@@ -167,6 +172,10 @@ type UseMermaidRequestResult = {
   setManualText: MermaidRequestController["setManualText"];
 };
 
+/**
+ * React hook wrapper around the Mermaid request controller so UI components
+ * can interact with the controller using idiomatic hook semantics.
+ */
 export function useMermaidRequest({ domain, problem }: UseMermaidRequestArgs): UseMermaidRequestResult {
   const controller = useMemo(() => createMermaidRequestController(domain, problem), []);
 

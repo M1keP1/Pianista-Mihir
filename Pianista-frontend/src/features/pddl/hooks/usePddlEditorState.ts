@@ -43,6 +43,11 @@ export type UsePddlEditorStateResult = {
   generateProblemNow: (nlText: string, domainText: string) => Promise<void>;
 };
 
+/**
+ * Central state machine for the dual-pane PDDL editor. Tracks caret location,
+ * manages validation/generation requests with debouncing, and persists drafts
+ * to localStorage so the rest of the app can resume where the user left off.
+ */
 export function usePddlEditorState(): UsePddlEditorStateResult {
   const [domain, setDomain] = useState("");
   const [problem, setProblem] = useState("");
