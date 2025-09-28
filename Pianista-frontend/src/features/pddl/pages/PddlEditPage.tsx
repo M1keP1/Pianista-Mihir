@@ -124,17 +124,22 @@ export default function PddlEditPage() {
         position: "absolute",
         inset: 0,
         overflow: "auto",
-        display: "grid",
-        placeItems: "center",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        alignItems: "flex-start",
         background: "var(--color-bg)",
         color: "var(--color-text)",
         padding: "1rem",
         paddingBottom: floatingControlsClearance,
+        gap: "1rem",
       }}
     >
-      <BrandLogo />
+      <div style={{ alignSelf: "center" }}>
+        <BrandLogo />
+      </div>
 
-      <ActionBar>
+      <ActionBar style={{ width: "min(1400px, 96vw)", margin: "0 auto" }}>
         {/* View toggle button */}
         {isMermaidOpen ? (
           <PillButton
@@ -227,7 +232,14 @@ export default function PddlEditPage() {
       </style>
 
       {/* Content */}
-      <div style={{ display: "grid", gap: "1rem", width: "min(1160px, 92vw)" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "1rem",
+          width: "min(1400px, 96vw)",
+          margin: "0 auto",
+        }}
+      >
         {/* Mermaid panel */}
         {isMermaidOpen && (
           <MermaidPanel
@@ -265,7 +277,14 @@ export default function PddlEditPage() {
         )}
 
         {/* Editors row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
           <EditorPanel<DomainEditMode>
             title="Domain"
             accentColor="var(--color-accent)"
