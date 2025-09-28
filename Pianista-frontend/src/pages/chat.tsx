@@ -102,7 +102,7 @@ const ChatPage: React.FC = () => {
       <AddShortcutModal open={showCreate} onClose={() => setShowCreate(false)} onCreate={addShortcut} />
 
       <ActionBar>
-        <PillButton to="/minizinc" ariaLabel="Go to MiniZinc Solver" label="Go to Solver" />
+        <PillButton to="/minizinc" ariaLabel="Go to MiniZinc Solver" label="Go to Solvers" />
       </ActionBar>
     </main>
   );

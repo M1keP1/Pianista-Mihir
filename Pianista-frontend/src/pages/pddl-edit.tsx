@@ -111,7 +111,9 @@ export default function PddlEditPage() {
   } = useMermaidPreview({ domain, problem });
 
   const canGenerate = !!domain.trim() && !!problem.trim();
-
+  const canRegenerate = planPhase === "success";
+  const floatingControlsClearance =
+  "calc(env(safe-area-inset-bottom) + 56px + clamp(24px, 10vh, 40px))";
   /* --------------------------------- UI ----------------------------------- */
 
   return (
@@ -121,13 +123,13 @@ export default function PddlEditPage() {
       style={{
         position: "absolute",
         inset: 0,
-        overflow: "hidden",
+        overflow: "auto",
         display: "grid",
         placeItems: "center",
         background: "var(--color-bg)",
         color: "var(--color-text)",
         padding: "1rem",
-        paddingBottom: "96px",
+        paddingBottom: floatingControlsClearance,
       }}
     >
       <BrandLogo />
@@ -184,21 +186,27 @@ export default function PddlEditPage() {
             />
           </div>
         )}
-        {/* Reset button — now to the RIGHT of Generate; reserved width prevents shifting */}
+        {/* Reset / Regenerate button — visually disabled when not clickable */}
         <div className="reset-slot">
-          {planPhase === "success" && (
-            <PillButton
-              onClick={handleRegenerate}
-              iconOnly
-              rightIcon={<Reload className="icon-accent"/>}
-              ariaLabel="Clear Plan"
-              style={{
-                  width: 30,
-                  height: 30,
-              }}
-            />
-          )}
+          <PillButton
+            onClick={canRegenerate ? handleRegenerate : undefined}
+            iconOnly
+            rightIcon={<Reload className="icon-accent" />}
+            ariaLabel="Clear Plan"
+            disabled={!canRegenerate}
+            aria-disabled={!canRegenerate}
+            className={!canRegenerate ? "pill-disabled" : undefined}
+            style={{
+              width: 30,
+              height: 30,
+              opacity: canRegenerate ? 1 : 0.45,
+              filter: canRegenerate ? undefined : "grayscale(55%)",
+              cursor: canRegenerate ? "pointer" : "not-allowed",
+              transition: "opacity 120ms ease"
+            }}
+          />
         </div>
+
       </ActionBar>
 
 
@@ -352,7 +360,7 @@ export default function PddlEditPage() {
         </div>
 
         {/* Spacer so content never hides behind the fixed footer/actions */}
-        <div aria-hidden style={{ height: 56 }} />
+        <div aria-hidden style={{ height: floatingControlsClearance }} />
       </div>
     </main>
   );
