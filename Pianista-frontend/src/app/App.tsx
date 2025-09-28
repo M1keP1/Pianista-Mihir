@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 import Backdrop from "@/app/BackDrop";
@@ -11,6 +11,8 @@ import PlanPage from "@/features/planning/pages/PlanPage";
 import MiniZincPage from "@/features/minizinc/pages/MiniZincPage";
 
 export default function App() {
+  const { pathname } = useLocation();
+
   return (
     <>
       <Backdrop />
@@ -23,7 +25,7 @@ export default function App() {
         <Route path="/minizinc" element={<MiniZincPage />} />
       </Routes>
       <ThemeSwitcherFab />
-      <PianistaFooter />
+      {!pathname.startsWith("/pddl-edit") && <PianistaFooter />}
       <Toaster position="bottom-right" />
     </>
   );
