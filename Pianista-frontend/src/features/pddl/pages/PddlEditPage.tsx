@@ -1,7 +1,6 @@
 // src/pages/pddl-edit.tsx
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import BrandLogo from "@/shared/components/VS_BrandButton";
 import PillButton from "@/shared/components/PillButton";
 import ModeSlider from "@/shared/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/features/pddl/components/MermaidPanel";
@@ -132,8 +131,6 @@ export default function PddlEditPage() {
         paddingBottom: floatingControlsClearance,
       }}
     >
-      <BrandLogo />
-
       <ActionBar>
         {/* View toggle button */}
         {isMermaidOpen ? (
@@ -208,6 +205,22 @@ export default function PddlEditPage() {
         </div>
 
       </ActionBar>
+
+      <div
+        style={{
+          position: "fixed",
+          left: "clamp(16px, 4vw, 48px)",
+          bottom: "calc(env(safe-area-inset-bottom) + 16px)",
+          zIndex: 10,
+        }}
+      >
+        <PillButton
+          to="/chat"
+          label="Back to Chat"
+          ariaLabel="Back to Chat"
+          leftIcon="←"
+        />
+      </div>
 
 
 
