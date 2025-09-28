@@ -128,33 +128,30 @@ export default function PlannerDropup({
       </button>
 
       {/* Floating card (drop-up) */}
-      <div
-        ref={menuRef}
-        role="menu"
-        aria-label="Choose planner"
-        style={{
-          position: "absolute",
-          right: 0,
-          bottom: "calc(100% + 8px)",      // drop-up
-          minWidth: 220,
-          maxHeight: 300,
-          overflowY: "auto",
-          background: "var(--color-surface)",
-          color: "var(--color-text)",
-          border: "1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border-muted))",
-          borderRadius: 12,
-          boxShadow: "0 14px 42px var(--color-shadow)",
-          padding: 8,
-          zIndex: 40,
-          opacity: open ? 1 : 0,
-          transform: open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)",
-          transformOrigin: "bottom right",
-          transition: "opacity 140ms ease, transform 180ms cubic-bezier(.2,.8,.2,1)",
-          pointerEvents: open ? "auto" : "none",
-          backdropFilter: "blur(10px)",
-          outline: "none",
-        }}
-      >
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Choose planner"
+          className="frosted-card"
+          style={{
+            position: "absolute",
+            right: 0,
+            bottom: "calc(100% + 8px)",
+            minWidth: 220,
+            maxHeight: 300,
+            overflowY: "auto",
+            color: "var(--color-text)",
+            padding: 8,
+            zIndex: 9999,
+            opacity: open ? 1 : 0,
+            transform: open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)",
+            transformOrigin: "bottom right",
+            transition: "opacity 140ms ease, transform 180ms cubic-bezier(.2,.8,.2,1)",
+            pointerEvents: open ? "auto" : "none",
+            outline: "none",
+          }}
+        >
+
         <div style={{ fontFamily: "monospace", fontSize: ".8rem", opacity: 0.9, padding: "2px 6px 6px" }}>
           Planner <span style={{ opacity: .7 }}>({currentName})</span>
         </div>

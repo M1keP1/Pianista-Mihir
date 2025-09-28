@@ -93,6 +93,7 @@ export default function PddlEditPage() {
     >
       {/* Fixed compact Action Bar */}
       <ActionBar
+      className="frosted-card"
         style={{
           position: "fixed",
           left: "50%",
@@ -105,15 +106,8 @@ export default function PddlEditPage() {
           alignItems: "center",
           justifyContent: "center",
           gap: "0.5rem",
-          overflow: "hidden",
           padding: "6px 10px",
           height: `${BAR_H}px`,
-          borderRadius: 14,
-          background: "rgba(255,255,255,0.06)",
-          backdropFilter: "blur(12px) saturate(120%)",
-          WebkitBackdropFilter: "blur(12px) saturate(120%)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
         }}
         laneStyle={{
           display: "inline-flex",
@@ -121,9 +115,14 @@ export default function PddlEditPage() {
           alignItems: "center",
           justifyContent: "center",
           background: "transparent",
+          backgroundColor: "transparent",
+          border: "none",
+          boxShadow: "none",
+          backdropFilter: "none",
+          WebkitBackdropFilter: "none",
         }}
       >
-        <PillButton to="/chat" label="Back to Chat" ariaLabel="Back to Chat" leftIcon={<span aria-hidden>←</span>} />
+        <PillButton to="/chat" label="New Chat" ariaLabel="Back to Chat" leftIcon={<span aria-hidden>←</span>} />
 
         {isMermaidOpen ? (
           <PillButton onClick={closeMermaid} label="PDDL View" ariaLabel="Close Mermaid and return to PDDL editors" />
