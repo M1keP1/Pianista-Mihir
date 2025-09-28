@@ -131,7 +131,16 @@ export default function PddlEditPage() {
         paddingBottom: floatingControlsClearance,
       }}
     >
-      <ActionBar>
+      <ActionBar
+        style={{
+          left: 0,
+          right: 0,
+          margin: "0 auto",
+          justifyContent: "center",
+          width: "min(90vw, 480px)",
+        }}
+        laneStyle={{ margin: "0 auto" }}
+      >
         <PillButton
           to="/chat"
           label="Back to Chat"
