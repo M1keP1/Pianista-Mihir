@@ -133,7 +133,7 @@ export default function PlannerDropup({
         role="menu"
         aria-label="Choose planner"
         style={{
-          position: "fixed",
+          position: "absolute",
           right: 0,
           bottom: "calc(100% + 8px)",      // drop-up
           minWidth: 220,

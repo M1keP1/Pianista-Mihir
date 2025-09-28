@@ -377,7 +377,7 @@ section[data-busy-glow="true"] {
 .action-bar {
   position: fixed;
   right: clamp(16px, 4vw, 48px);
-  bottom: calc(56px + env(safe-area-inset-bottom));
+  bottom: calc( env(safe-area-inset-bottom));
   z-index: 11; /* above content; below modals */
   width: min(90vw, 480px);
   padding: 0 16px;
