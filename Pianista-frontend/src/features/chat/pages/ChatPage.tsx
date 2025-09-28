@@ -1,7 +1,6 @@
 import React from "react";
 import { useTheme } from "@/app/providers/ThemeProvider";
 
-import BrandLogo from "@/shared/components/VS_BrandButton";
 import Textarea from "@/shared/components/Inputbox/TextArea";
 import ModeSlider from "@/shared/components/Inputbox/Controls/ModeSlider";
 import PillButton from "@/shared/components/PillButton";
@@ -22,7 +21,6 @@ import type { Mode } from "@/features/chat/hooks/useChatComposer";
 const ChatPage: React.FC = () => {
   const { name } = useTheme();
   const pianistaLogo = name === "light" ? logoLightBg : logoDarkBg;
-  const SHIFT_UP = "-10vh";
 
   // 1) Composer first — we need `text` for auto-detect
   const { text, setText, resetIfCleared, submit, status, statusHint } = useChatComposer();
@@ -53,10 +51,23 @@ const ChatPage: React.FC = () => {
     <main
       role="main"
       aria-label="Chat"
-      style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center", zIndex: 5, padding: "1rem" }}
+      style={{
+        width: "100%",
+        minHeight: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "2rem 1rem",
+      }}
     >
-      <BrandLogo />
-      <div style={{ display: "grid", justifyItems: "center", gap: "1rem", width: "min(900px, 92vw)", transform: `translateY(${SHIFT_UP})` }}>
+      <div
+        style={{
+          display: "grid",
+          justifyItems: "center",
+          gap: "1.25rem",
+          width: "min(920px, 96vw)",
+        }}
+      >
         <img
           src={pianistaLogo}
           alt="Pianista logo"
@@ -64,7 +75,7 @@ const ChatPage: React.FC = () => {
           style={{ width: "clamp(160px, 28vw, 280px)", height: "auto", userSelect: "none", filter: "drop-shadow(0 3px 10px var(--color-shadow))" }}
         />
 
-        <div style={{ position: "relative", width: "42vw", maxWidth: 900 }}>
+        <div style={{ position: "relative", width: "min(640px, 90vw)", maxWidth: 900 }}>
           <Textarea
             ref={textareaRef as any}
             value={text}
@@ -95,7 +106,16 @@ const ChatPage: React.FC = () => {
           )}
         </div>
 
-        <div style={{ width: "42vw", maxWidth: 900, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+        <div
+          style={{
+            width: "min(640px, 90vw)",
+            maxWidth: 900,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
           <ModeSlider value={mode} onChange={setManual} size="xs" />
           <PillButton iconOnly ariaLabel="Send" onClick={() => submit(mode as Mode)} leftIcon={<ArrowUp />} />
         </div>

@@ -1,6 +1,5 @@
 // src/pages/minizinc.tsx
 import React from "react";
-import BrandLogo from "@/shared/components/VS_BrandButton";
 import Textarea, { type TextAreaStatus } from "@/shared/components/Inputbox/TextArea";
 import PillButton from "@/shared/components/PillButton";
 import { generateSolution } from "@/api/pianista/generateSolution";
@@ -147,26 +146,19 @@ while (attempt < maxPolls && aliveRef.current) {
       role="main"
       aria-label="MiniZinc"
       style={{
-        position: "absolute",
-        inset: 0,
-        display: "grid",
-        placeItems: "center",
-        textAlign: "center",
-        zIndex: 5,
-        padding: "1rem",
-        background: "var(--color-bg)",
-        color: "var(--color-text)",
+        width: "100%",
+        minHeight: "100%",
+        display: "flex",
+        justifyContent: "center",
+        padding: "2rem 1.25rem",
       }}
     >
-      <BrandLogo />
-
       <div
         style={{
           display: "grid",
           justifyItems: "center",
-          gap: "1rem",
-          width: "min(1100px, 96vw)",
-          transform: "translateY(-8vh)",
+          gap: "1.25rem",
+          width: "min(1100px, 98vw)",
         }}
       >
         <h1 style={{ marginBottom: 8  }}>MiniZinc</h1>

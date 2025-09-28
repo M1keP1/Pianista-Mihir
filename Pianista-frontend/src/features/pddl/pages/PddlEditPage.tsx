@@ -1,7 +1,6 @@
 // src/pages/pddl-edit.tsx
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-import BrandLogo from "@/shared/components/VS_BrandButton";
 import PillButton from "@/shared/components/PillButton";
 import ModeSlider from "@/shared/components/Inputbox/Controls/ModeSlider";
 import MermaidPanel from "@/features/pddl/components/MermaidPanel";
@@ -112,8 +111,6 @@ export default function PddlEditPage() {
 
   const canGenerate = !!domain.trim() && !!problem.trim();
   const canRegenerate = planPhase === "success";
-  const floatingControlsClearance =
-  "calc(env(safe-area-inset-bottom) + 56px + clamp(24px, 10vh, 40px))";
   /* --------------------------------- UI ----------------------------------- */
 
   return (
@@ -121,19 +118,13 @@ export default function PddlEditPage() {
       role="main"
       aria-label="PDDL edit"
       style={{
-        position: "absolute",
-        inset: 0,
-        overflow: "auto",
-        display: "grid",
-        placeItems: "center",
-        background: "var(--color-bg)",
-        color: "var(--color-text)",
-        padding: "1rem",
-        paddingBottom: floatingControlsClearance,
+        width: "100%",
+        minHeight: "100%",
+        display: "flex",
+        justifyContent: "center",
+        padding: "2rem 1.25rem",
       }}
     >
-      <BrandLogo />
-
       <ActionBar>
         {/* View toggle button */}
         {isMermaidOpen ? (
@@ -227,7 +218,13 @@ export default function PddlEditPage() {
       </style>
 
       {/* Content */}
-      <div style={{ display: "grid", gap: "1rem", width: "min(1160px, 92vw)" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "1.25rem",
+          width: "min(1160px, 96vw)",
+        }}
+      >
         {/* Mermaid panel */}
         {isMermaidOpen && (
           <MermaidPanel
@@ -265,7 +262,14 @@ export default function PddlEditPage() {
         )}
 
         {/* Editors row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
           <EditorPanel<DomainEditMode>
             title="Domain"
             accentColor="var(--color-accent)"
@@ -359,8 +363,6 @@ export default function PddlEditPage() {
           />
         </div>
 
-        {/* Spacer so content never hides behind the fixed footer/actions */}
-        <div aria-hidden style={{ height: floatingControlsClearance }} />
       </div>
     </main>
   );

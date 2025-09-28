@@ -1,18 +1,19 @@
 // ThemeSwitcherFab.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTheme, type ThemeName } from "@/app/providers/ThemeProvider";
+
+type ThemeSwitcherVariant = "floating" | "pane";
+
+type ThemeSwitcherProps = {
+  variant?: ThemeSwitcherVariant;
+  className?: string;
+};
 
 /** Available themes (no 'starry' yet) */
 const THEME_OPTIONS: { id: ThemeName; label: string; hint: string }[] = [
   { id: "classic", label: "Classic", hint: "Sleek dark" },
   { id: "light",   label: "Light",   hint: "Bright & clean" },
 ];
-
-/** UI tokens */
-const PILL_SIZE = 36;
-const PILL_RIGHT = "1.5rem";
-const PILL_BOTTOM = "0.7rem";
-const MENU_GAP = 8;
 
 /** High-contrast palette icon as a data URI (works everywhere) */
 const PALETTE_ICON =
@@ -28,53 +29,9 @@ const PALETTE_ICON =
      </svg>`
   );
 
-/** Accessible floating action button */
-const FabButton: React.FC<{
-  open: boolean;
-  onToggle: () => void;
-  btnRef: React.RefObject<HTMLButtonElement>;
-}> = ({ open, onToggle, btnRef }) => (
-  <button
-    ref={btnRef}
-    aria-haspopup="menu"
-    aria-expanded={open}
-    aria-label="Theme switcher"
-    onClick={onToggle}
-    style={{
-      position: "fixed",
-      right: PILL_RIGHT,
-      bottom: PILL_BOTTOM,
-      width: PILL_SIZE,
-      height: PILL_SIZE,
-      borderRadius: 9999,
-      border: "1px solid var(--color-border-muted)",
-      background: "var(--color-surface)",
-      boxShadow: "0 4px 12px var(--color-shadow)",
-      cursor: "pointer",
-      zIndex: 100,
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      transition: "transform .15s ease, box-shadow .2s ease",
-      backdropFilter: "blur(6px)",
-      outline: "none",
-      WebkitTapHighlightColor: "transparent",
-    }}
-    onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
-    onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  >
-    <img
-      src={PALETTE_ICON}
-      width={20}
-      height={20}
-      alt="" // decorative
-      aria-hidden="true"
-      draggable={false}
-      style={{ display: "block", userSelect: "none" }}
-    />
-  </button>
-);
+function cx(...parts: Array<string | undefined | false | null>) {
+  return parts.filter(Boolean).join(" ");
+}
 
 /** Menu item for a theme option */
 const ThemeItem: React.FC<{
@@ -87,115 +44,43 @@ const ThemeItem: React.FC<{
   <button
     role="menuitemradio"
     aria-checked={active}
+    className={cx("theme-switcher__option", active && "is-active")}
     onClick={() => onSelect(id)}
-    style={{
-      width: "100%",
-      display: "block",
-      padding: ".65rem .75rem",
-      borderRadius: 10,
-      border: active
-        ? "1px solid color-mix(in srgb, var(--color-accent) 55%, transparent)"
-        : "1px solid transparent",
-      background: active
-        ? "color-mix(in srgb, var(--color-accent) 22%, transparent)"
-        : "transparent",
-      color: "inherit",
-      cursor: "pointer",
-      fontFamily: "monospace",
-      transition: "background .15s ease, border-color .15s ease, transform .05s ease",
-      outline: "none",
-      margin: ".25rem 0",
-      textAlign: "center",
-      position: "relative",
-    }}
-    onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.99)")}
-    onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
   >
-    <div style={{ fontWeight: 800, fontSize: "1.05rem", letterSpacing: 0.2 }}>{label}</div>
-    <div style={{ fontSize: ".85rem", opacity: 0.75, marginTop: 2 }}>{hint}</div>
+    <span className="theme-switcher__option-text">
+      <span className="theme-switcher__option-label">{label}</span>
+      <span className="theme-switcher__option-hint">{hint}</span>
+    </span>
     {active && (
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          right: "0.85rem",
-          top: "50%",
-          transform: "translateY(-50%)",
-          fontSize: "1rem",
-          opacity: 0.9,
-        }}
-      >
+      <span className="theme-switcher__option-check" aria-hidden>
         ✓
       </span>
     )}
   </button>
 );
 
-/** The floating theme switcher + menu */
-const ThemeMenu: React.FC<{
-  open: boolean;
-  menuRef: React.RefObject<HTMLDivElement>;
-  active: ThemeName;
-  onSelect: (id: ThemeName) => void;
-}> = ({ open, menuRef, active, onSelect }) => (
-  <div
-    ref={menuRef}
-    role="menu"
-    aria-label="Choose theme"
-    style={{
-      position: "fixed",
-      right: PILL_RIGHT,
-      bottom: `calc(${PILL_BOTTOM} + ${PILL_SIZE}px + ${MENU_GAP}px)`,
-      minWidth: 260,
-      background: "var(--color-surface)",
-      color: "var(--color-text)",
-      border: "1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border-muted))",
-      borderRadius: 12,
-      boxShadow: "0 14px 42px var(--color-shadow)",
-      padding: "0.5rem",
-      zIndex: 101,
-      opacity: open ? 1 : 0,
-      transform: open ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)",
-      transformOrigin: "bottom right",
-      transition: "opacity 140ms ease, transform 180ms cubic-bezier(.2,.8,.2,1)",
-      pointerEvents: open ? "auto" : "none",
-      backdropFilter: "blur(10px)",
-      outline: "none",
-      textAlign: "center",
-    }}
-  >
-    <div style={{ fontFamily: "monospace", fontSize: ".8rem", opacity: 0.9, padding: ".25rem .5rem .35rem" }}>
-      Theme
-    </div>
-    {THEME_OPTIONS.map((t) => (
-      <ThemeItem
-        key={t.id}
-        id={t.id}
-        label={t.label}
-        hint={t.hint}
-        active={active === t.id}
-        onSelect={onSelect}
-      />
-    ))}
-  </div>
-);
-
-/** Public component */
-const ThemeSwitcherFab: React.FC = () => {
+/** The floating/pane theme switcher + menu */
+const ThemeSwitcherFab: React.FC<ThemeSwitcherProps> = ({ variant = "floating", className }) => {
   const { name, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null!);
-  const btnRef = useRef<HTMLButtonElement>(null) as React.RefObject<HTMLButtonElement>;
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const isFloating = variant === "floating";
 
-  // Close on outside click / ESC
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
-      if (menuRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node)) return;
+      if (
+        menuRef.current?.contains(e.target as Node) ||
+        buttonRef.current?.contains(e.target as Node)
+      ) {
+        return;
+      }
       setOpen(false);
     };
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onEsc);
     return () => {
@@ -205,20 +90,68 @@ const ThemeSwitcherFab: React.FC = () => {
   }, [open]);
 
   const toggle = () => setOpen((v) => !v);
-  const selectTheme = (t: ThemeName) => setTheme(t, true); // keep menu open after choose
-
-  // Memoize to avoid re-renders for static UI
-  const fab = useMemo(() => <FabButton open={open} onToggle={toggle} btnRef={btnRef} />, [open]);
-  const menu = useMemo(
-    () => <ThemeMenu open={open} menuRef={menuRef} active={name} onSelect={selectTheme} />,
-    [open, name]
-  );
+  const selectTheme = (t: ThemeName) => {
+    setTheme(t, true);
+    if (!isFloating) {
+      setOpen(false);
+    }
+  };
 
   return (
-    <>
-      {fab}
-      {menu}
-    </>
+    <div
+      className={cx(
+        "theme-switcher",
+        isFloating ? "theme-switcher--floating" : "theme-switcher--pane",
+        open && "is-open",
+        className,
+      )}
+      data-open={open}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Theme switcher"
+        className="theme-switcher__trigger"
+        onClick={toggle}
+      >
+        <img
+          src={PALETTE_ICON}
+          width={20}
+          height={20}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="theme-switcher__icon"
+        />
+        {!isFloating && <span className="theme-switcher__trigger-label">Theme</span>}
+        {!isFloating && (
+          <span className="theme-switcher__chevron" aria-hidden>
+            {open ? "▴" : "▾"}
+          </span>
+        )}
+      </button>
+
+      <div
+        ref={menuRef}
+        role="menu"
+        aria-label="Choose theme"
+        className="theme-switcher__menu"
+      >
+        <div className="theme-switcher__menu-heading">Theme</div>
+        {THEME_OPTIONS.map((t) => (
+          <ThemeItem
+            key={t.id}
+            id={t.id}
+            label={t.label}
+            hint={t.hint}
+            active={name === t.id}
+            onSelect={selectTheme}
+          />
+        ))}
+      </div>
+    </div>
   );
 };
 

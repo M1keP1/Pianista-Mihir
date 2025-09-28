@@ -5,7 +5,16 @@ import { pingPlanner } from "@/api/pianista/health";
 
 type UiStatus = "checking" | "ok" | "down";
 
-const PianistaFooter: React.FC = () => {
+type PianistaFooterProps = {
+  variant?: "floating" | "inline";
+  className?: string;
+};
+
+function cx(...parts: Array<string | undefined | false | null>) {
+  return parts.filter(Boolean).join(" ");
+}
+
+const PianistaFooter: React.FC<PianistaFooterProps> = ({ variant = "floating", className }) => {
   useTheme(); // ensures data-theme gets applied
 
   const [ui, setUi] = React.useState<UiStatus>("checking");
@@ -30,7 +39,7 @@ const PianistaFooter: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    check();                   // initial ping
+    check(); // initial ping
     const id = setInterval(check, 1000000000); // ping every 60s
     return () => clearInterval(id);
   }, [check]);
@@ -42,55 +51,23 @@ const PianistaFooter: React.FC = () => {
       ? "var(--color-danger, #dc2626)"
       : "var(--color-warning, #f59e0b)";
 
-  // (used only for a11y)
-  const a11yLabel =
-    ui === "ok" ? "Online" : ui === "down" ? "Offline" : "Checking";
+  const a11yLabel = ui === "ok" ? "Online" : ui === "down" ? "Offline" : "Checking";
 
   return (
     <footer
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: "100%",
-        textAlign: "center",
-        fontSize: "12px",
-        fontFamily: "monospace",
-        paddingBottom: "8px",
-        pointerEvents: "none",
-        zIndex: 10,
-      }}
+      className={cx(
+        "pianista-footer",
+        variant === "floating" ? "pianista-footer--floating" : "pianista-footer--inline",
+        className,
+      )}
     >
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "10px",
-          padding: "4px 16px",
-          borderRadius: "8px",
-          border:
-            "1px solid color-mix(in srgb, var(--color-accent) 20%, transparent)",
-          background:
-            "color-mix(in srgb, var(--color-bg) 20%, transparent)",
-          backdropFilter: "blur(6px)",
-          boxShadow: "0 2px 12px var(--color-shadow)",
-          color: "var(--color-text-secondary)",
-          pointerEvents: "auto",
-        }}
-      >
+      <div className="footer-chip pianista-footer__inner">
         <span>© 2025</span>
         <span style={{ color: "var(--color-text)" }}>VisionSpace™</span>
         <span>· All rights reserved</span>
-
-        {/* spacer dot before chip */}
         <span aria-hidden>·</span>
 
-        {/* API status chip (right-aligned end of row) */}
-        <div
-          className="footer-status-chip"
-          style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
-        >
+        <div className="footer-status-chip">
           <button
             onClick={check}
             title="Click to recheck API status"
@@ -118,35 +95,9 @@ const PianistaFooter: React.FC = () => {
                     : "none",
               }}
             />
-            {/* keep only the short label */}
             <span style={{ color: "var(--color-text)" }}>API</span>
 
-            {/* Hover hint (tooltip) */}
-            <div
-              className="footer-status-tooltip"
-              role="status"
-              aria-live="polite"
-              style={{
-                position: "absolute",
-                right: 0,
-                bottom: "140%",
-                minWidth: 260,
-                maxWidth: 360,
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: `1px solid ${color}`,
-                background: "var(--color-surface)",
-                color: "var(--color-text)",
-                boxShadow: "0 4px 16px var(--color-shadow)",
-                fontFamily: "monospace",
-                fontSize: "11px",
-                lineHeight: 1.35,
-                pointerEvents: "none",
-                opacity: 0,
-                visibility: "hidden",
-                transition: "opacity 120ms ease",
-              }}
-            >
+            <div className="pianista-footer__tooltip" role="status" aria-live="polite">
               <div style={{ marginBottom: 4, opacity: 0.9 }}>
                 {hint || "Planner gateway reachable."}
               </div>
@@ -156,16 +107,6 @@ const PianistaFooter: React.FC = () => {
             </div>
           </button>
         </div>
-
-        {/* tooltip hover CSS */}
-        <style>
-          {`
-            .footer-status-chip:hover .footer-status-tooltip {
-              opacity: 1;
-              visibility: visible;
-            }
-          `}
-        </style>
       </div>
     </footer>
   );

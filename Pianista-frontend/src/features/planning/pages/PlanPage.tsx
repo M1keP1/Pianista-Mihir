@@ -34,14 +34,11 @@ export default function PlanPage() {
       role="main"
       aria-label="Plan viewer"
       style={{
-        position: "absolute",
-        inset: 0,
-        overflow: "hidden",
-        display: "grid",
-        placeItems: "center",
-        background: "var(--color-bg)",
-        color: "var(--color-text)",
-        padding: "12px 12px 84px 12px", // extra bottom padding for fixed footer
+        width: "100%",
+        minHeight: "100%",
+        display: "flex",
+        justifyContent: "center",
+        padding: "2rem 1.25rem",
       }}
     >
       <style>{`
@@ -52,7 +49,13 @@ export default function PlanPage() {
       `}</style>
 
       {/* Content (wider & taller than before) */}
-      <div style={{ display: "grid", gap: "12px", width: "min(1400px, 96vw)" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "1.25rem",
+          width: "min(1400px, 98vw)",
+        }}
+      >
         {/* Plan Container */}
         <section
           style={{

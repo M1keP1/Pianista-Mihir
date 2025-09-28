@@ -1,11 +1,10 @@
 import React from "react";
 import { useTheme } from "@/app/providers/ThemeProvider";
 
-import PillButton from "@/shared/components/PillButton";
-import BrandLogo from "@/shared/components/VS_BrandButton";
-
 import logoLightBg from "@/assets/pianista_logo_black.png";
 import logoDarkBg from "@/assets/pianista_logo_white.png";
+
+import PillButton from "@/shared/components/PillButton";
 
 const HomePage: React.FC = () => {
   const { name } = useTheme();
@@ -16,23 +15,22 @@ const HomePage: React.FC = () => {
       role="main"
       aria-label="Pianista"
       style={{
-        position: "absolute",
-        inset: 0,
-        display: "grid",
-        placeItems: "center",
+        width: "100%",
+        minHeight: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "2rem 1rem",
         textAlign: "center",
-        zIndex: 5,
-        padding: "1rem",
       }}
     >
-      <BrandLogo />
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: "1.25rem",
-          transform: "translateY(-8vh)",
+          gap: "1.5rem",
+          maxWidth: "min(720px, 90vw)",
         }}
       >
         <img
