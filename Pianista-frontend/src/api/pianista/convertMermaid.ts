@@ -1,4 +1,4 @@
-// src/api/convertMermaid.ts
+/** Pianista API call that turns Mermaid diagrams into PDDL snippets. */
 export type ConvertMermaidResponse = {
   result_status: "success" | "failure";
   conversion_result?: string; // may contain domain + problem in one blob

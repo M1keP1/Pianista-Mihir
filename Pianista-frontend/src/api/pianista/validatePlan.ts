@@ -1,4 +1,4 @@
-// src/api/pianista/validatePlan.ts
+/** Validates a candidate plan against the provided domain and problem. */
 export type ValidatePlanResponse = {
   result: "success" | "failure";
   pddl_type: string | null;

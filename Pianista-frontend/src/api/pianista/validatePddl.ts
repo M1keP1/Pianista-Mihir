@@ -1,4 +1,4 @@
-// src/api/validatePddl.ts
+/** Validates a single PDDL file (domain or problem) with Pianista. */
 export type ValidateResponse = {
   result: "success" | "failure";
   pddl_type: string | null;
@@ -14,7 +14,7 @@ export async function validatePddl(
   type: "domain" | "problem",
   signal?: AbortSignal
 ): Promise<ValidateResponse> {
-  if (!KEY) throw new Error("Planner API key missing (VITE_PLANNER_KEY).");
+  if (!KEY) throw new Error("Planner API key missing (VITE_PIANISTA_KEY).");
 
   const res = await fetch(`${BASE}/validate/pddl?pddl_type=${type}`, {
     method: "POST",

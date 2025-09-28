@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node ./scripts/run-tests.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

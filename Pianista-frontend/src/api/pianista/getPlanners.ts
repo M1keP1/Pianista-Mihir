@@ -1,4 +1,4 @@
-// src/api/pianista/getPlanners.ts
+/** Fetches the list of available planner backends from Pianista. */
 export type Planner = { id: string; name: string };
 
 const BASE = import.meta.env.VITE_PIANISTA_BASE;

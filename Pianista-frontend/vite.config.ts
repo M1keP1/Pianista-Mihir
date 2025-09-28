@@ -14,8 +14,11 @@ export default defineConfig({
   ],
   optimizeDeps: { include: ["mermaid"] },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      { find: "@/app", replacement: path.resolve(__dirname, "./src/app") },
+      { find: "@/features", replacement: path.resolve(__dirname, "./src/features") },
+      { find: "@/shared", replacement: path.resolve(__dirname, "./src/shared") },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
 })

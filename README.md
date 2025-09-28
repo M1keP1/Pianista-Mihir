@@ -11,10 +11,8 @@ The goal here is to build a frontend that makes it approachable: natural languag
 * **Smart Mode Switching** – automatically detects and switches between AI, Domain, Domain+Problem, and Mermaid.
 * **Chat Entry Point** – one input for NL, Mermaid, or PDDL → routes to editor.
 * **PDDL Store** – persists chat inputs and manages transitions between Chat, Editor, and Plan pages.
-* **Editor Page** – side-by-side Domain + Problem editors with validation and AI generation.
-
-  * Includes a **Mermaid panel** (inside the Editor) to visualize PDDL as a graph (in progress).
-* **Plan Page** – generate, view, and validate plans; groundwork for a Gantt chart.
+* **Editor Page** – side-by-side Domain + Problem editors with validation, AI generation, the shipping **MermaidPanel** graph preview, and an in-context **PlannerDropup** selector for available planners.
+* **Plan Page** – generate, view, and validate plans with the **GanttLite** timeline, raw JSON, and text tabs kept in sync.
 * **Custom Components** – ModeSlider, StatusPill, theme-aware TextArea, theme switcher FAB.
 * **Footer API Light** – quick status indicator for Pianista backend.
 
@@ -22,13 +20,13 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ## 🏛 Architecture & UI Foundations
 
-* **State & Persistence** → `pddlStore.ts` keeps chat, editor, and plan state consistent across pages with snapshots, job tracking, and results.
+* **State & Persistence** → `shared/lib/pddlStore.ts` keeps chat, editor, and plan state consistent across pages with snapshots, job tracking, and results.
 * **Theming System** →
 
-  * `theme.css` defines the full design token system (colors, shadows, typography, glow states, status pills, and button variants).
-  * `themeContext.tsx` provides context + hooks for switching between `classic` (dark) and `light` themes, persisting choice in `localStorage`, and respecting system preference.
-  * `themeSwitcher.tsx` gives a floating FAB with accessible menu to toggle themes.
-* **Backdrop Layer** → `BackDrop.tsx` applies theme-aware background transitions behind all app content.
+  * `app/styles/theme.css` defines the full design token system (colors, shadows, typography, glow states, status pills, and button variants).
+  * `app/providers/ThemeProvider.tsx` provides context + hooks for switching between `classic` (dark) and `light` themes, persisting choice in `localStorage`, and respecting system preference.
+  * `shared/components/themeSwitcher.tsx` gives a floating FAB with accessible menu to toggle themes.
+* **Backdrop Layer** → `app/BackDrop.tsx` applies theme-aware background transitions behind all app content.
 * **Reusable Components** → Inputs, sliders, pills, and status indicators are modular, theme-aware, and accessibility-conscious.
 
 ---
@@ -51,12 +49,11 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ## 🚦 Status
 
-* Core UI implemented (Chat → Editor → Plan).
-* Pianista APIs integrated (domain, problem, plan).
-* Mermaid panel exists but still being refined.
+* Core UI implemented (Chat → Editor → Plan) with persistence and cross-page routing.
+* Pianista APIs integrated (domain, problem, plan) and planner selection fetches available backends.
+* MermaidPanel and GanttLite ship inside the editor and plan experiences.
 * PDDL store fully functional for persistence.
 * **Solver endpoints are not included** → they’re excluded for now because they are not yet functional.
-* **Planner selection and the “get planners” endpoint are not yet integrated** → planned for Week 2.
 * App not yet responsive across all screen sizes/browsers.
 * Code works but has repetitions → refactoring planned.
 
@@ -65,20 +62,17 @@ The goal here is to build a frontend that makes it approachable: natural languag
 ## 🐞 Known Issues / TODOs
 
 * Layout not fully responsive → issues on smaller screens or some browsers.
-* Mermaid panel UX needs refinement (zoom/drag + syntax correction).
-* Planner selection and “get planners” endpoint missing.
-* Code repetition in places → refactor needed.
 * Solver endpoints excluded until functional.
+* Code repetition in places → refactor needed.
 
 ---
 
 ## 🔜 Week 2 Plan
 
-* Refine the **Mermaid panel** with smoother UX and auto syntax correction.
-* Add an **interactive Gantt chart** to the Plan page.
-* Integrate **planner selection** and support the “get planners” endpoint.
+* Integrate solver endpoints and expose solver workflows once the backend is ready.
+* Make the UI fully responsive across browsers and devices.
 * Improve error handling and workflow feedback.
-* Make the UI **responsive** across browsers and devices.
+* Reduce duplication across shared components and hooks.
 
 ---
 
@@ -86,52 +80,34 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ```
 src/
- ├─ api/pianista/                  # Pianista backend API wrappers
- │   ├─ convertMermaid.ts          # Convert Mermaid syntax → PDDL
- │   ├─ generateDomain.ts          # Generate domain PDDL from NL
- │   ├─ generateProblem.ts         # Generate problem PDDL from NL
- │   ├─ generatePlan.ts            # Submit domain+problem → plan job
- │   ├─ getPlan.ts                 # Retrieve plan results (polling)
- │   ├─ validatePddl.ts            # Validate single PDDL (domain/problem)
- │   ├─ validatePlan.ts            # Validate generated plan
- │   ├─ validateMatchPddl.ts       # Validate domain+problem consistency
- │   └─ health.ts                  # API health check (for footer status)
- │
- ├─ components/
- │   ├─ icons/                     # Reusable SVG icons
- │   ├─ Inputbox/                  # Input system
- │   │   ├─ Controls/
- │   │   │   ├─ ModeSlider.tsx     # Mode toggle (AI / Domain / D+P / Mermaid)
- │   │   │   ├─ SendButton.tsx     # Themed, reusable send/submit button
- │   │   │   └─ TwoModeSlider.tsx  # Variant of slider for two-mode toggles
- │   │   │
- │   │   ├─ hooks/
- │   │   │   ├─ detectProcessingMode.ts # Detects input type (domain, problem, mermaid…)
- │   │   │   ├─ useModeDetection.ts     # Hook to auto-select mode based on input
- │   │   │   └─ useSubmitShortcut.ts    # Hook for Enter-to-send / Shift+Enter new line
- │   │   │
- │   │   ├─ TextArea.tsx           # Theme-aware, auto-resize textarea
- │   │   └─ StatusPill.tsx         # Status indicator (verification, error, AI thinking…)
- │   │
- │   ├─ footer.tsx                 # App footer + API status light
- │   ├─ PillButton.tsx             # Reusable pill-shaped button
- │   ├─ themeSwitcher.tsx          # Floating FAB to toggle Classic/Light themes
- │   └─ VS_BrandButton.tsx         # Branded button component (VisionSpace style)
- │
- ├─ lib/
- │   └─ pddlStore.ts               # Local persistence: chat, domain, problem, plan jobs
- │
- ├─ pages/
- │   ├─ home.tsx                   # Landing page with entry options
- │   ├─ chat.tsx                   # Chat entry point (NL / PDDL / Mermaid)
- │   ├─ pddl-edit.tsx              # Editor: domain + problem editors + Mermaid panel
- │   └─ plan.tsx                   # Plan viewer: raw plan + future Gantt chart
- │
- ├─ theme.css                      # Global design tokens (colors, buttons, textarea glow)
- ├─ themeContext.tsx               # Theme provider + React hook (Classic/Light)
- ├─ App.tsx                        # Root app with routing and layout
- ├─ BackDrop.tsx                   # Fixed background synced to theme
- └─ index.css                      # Base stylesheet imports
+ ├─ app/
+ │   ├─ App.tsx                      # Route shell + layout
+ │   ├─ BackDrop.tsx                 # Theme-synced background gradient
+ │   ├─ main.tsx                     # Vite entry point
+ │   ├─ providers/
+ │   │   └─ ThemeProvider.tsx        # Theme context + persistence
+ │   └─ styles/
+ │       └─ theme.css                # Design tokens and surface styles
+ ├─ features/
+ │   ├─ home/pages/HomePage.tsx      # Landing hub with entry shortcuts
+ │   ├─ chat/pages/ChatPage.tsx      # Natural-language entry with mode detection
+ │   ├─ pddl/
+ │   │   ├─ pages/PddlEditPage.tsx           # Domain/problem editors + MermaidPanel + PlannerDropup
+ │   │   ├─ components/MermaidPanel.tsx      # Raw ↔ graph preview tied to theme
+ │   │   ├─ components/PlannerDropup.tsx     # Drop-up planner selector backed by /planners
+ │   │   └─ components/EditorPanel.tsx       # Shared editor layout + validation messaging
+ │   └─ planning/
+ │       ├─ pages/PlanPage.tsx               # Plan viewer with timeline & validators
+ │       ├─ components/GanttLite/GanttLite.tsx # Lightweight Gantt renderer for plan steps
+ │       └─ hooks/usePlanData.ts             # Normalizes API payloads for the timeline
+ └─ shared/
+     ├─ components/
+     │   ├─ Inputbox/TextArea.tsx            # Theme-aware text editor
+     │   ├─ Inputbox/Controls/ModeSlider.tsx # Mode slider reused across flows
+     │   ├─ Inputbox/StatusPill.tsx          # Status indicator for validation/AI states
+     │   └─ themeSwitcher.tsx                # Floating theme switcher FAB
+     ├─ lib/pddlStore.ts                     # Persisted store for chat/editor/plan state
+     └─ hooks/useSubmitShortcut.ts           # Keyboard shortcut helper (Enter/Shift+Enter)
 
 ```
 ---

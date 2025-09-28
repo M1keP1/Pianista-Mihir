@@ -1,4 +1,4 @@
-// src/api/pianista/generateProblem.ts
+/** Generates a PDDL problem from natural language plus an existing domain. */
 export type GenerateProblemResponse = {
   result_status: "success" | "failure";
   generated_domain?: string;
