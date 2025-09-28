@@ -10,6 +10,8 @@ const panelStyle: CSSProperties = {
   padding: 0,
   boxShadow: "0 1.5px 10px var(--color-shadow)",
   overflow: "hidden",
+  display: "flex",
+  flexDirection: "column"
 };
 
 const headerStyle: CSSProperties = {
@@ -36,6 +38,8 @@ const headerControlsStyle: CSSProperties = {
 const bodyStyle: CSSProperties = {
   position: "relative",
   padding: 10,
+  flex: 1,
+  minHeight: 0 
 };
 
 export type EditorPanelProps<TMode extends string> = {
