@@ -8,17 +8,6 @@ The goal here is to build a frontend that makes it approachable: natural languag
 # Demo Video (To be uploaded)
 ---
 
-## ✨ Features Built So Far
-
-* **Smart Mode Switching** – automatically detects and switches between AI, Domain, Domain+Problem, and Mermaid.
-* **Chat Entry Point** – one input for NL, Mermaid, or PDDL → routes to editor.
-* **PDDL Store** – persists chat inputs and manages transitions between Chat, Editor, and Plan pages.
-* **Editor Page** – side-by-side Domain + Problem editors with validation, AI generation, the shipping **MermaidPanel** graph preview, and an in-context **PlannerDropup** selector for available planners.
-* **Plan Page** – generate, view, and validate plans with the **GanttLite** timeline, raw JSON, and text tabs kept in sync.
-* **Custom Components** – ModeSlider, StatusPill, theme-aware TextArea, theme switcher FAB.
-* **Footer API Light** – quick status indicator for Pianista backend.
-
----
 
 ## 🏛 Architecture & UI Foundations
 
@@ -41,10 +30,8 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ## 🐞 Known Issues / TODOs
 
-* Layout may not be fully responsive on smaller screens or some browsers.
-* Refinements needed in gantt chart component
 * Previous Chats not accesible through UI
-* Solvers backend returns 500 errors
+* key visible - need to offload endpoints to a backend (not provided by VS)
 
 ---
 
