@@ -131,7 +131,21 @@ export default function PddlEditPage() {
         paddingBottom: floatingControlsClearance,
       }}
     >
-      <ActionBar>
+      <ActionBar
+        style={{
+          left: 0,
+          right: 0,
+          margin: "0 auto",
+          width: "max-content",
+        }}
+        laneStyle={{ justifyContent: "center" }}
+      >
+        <PillButton
+          to="/chat"
+          label="Back to Chat"
+          ariaLabel="Back to Chat"
+          leftIcon="←"
+        />
         {/* View toggle button */}
         {isMermaidOpen ? (
           <PillButton
@@ -205,24 +219,6 @@ export default function PddlEditPage() {
         </div>
 
       </ActionBar>
-
-      <div
-        style={{
-          position: "fixed",
-          left: "clamp(16px, 4vw, 48px)",
-          bottom: "calc(env(safe-area-inset-bottom) + 55px)",
-          zIndex: 10,
-        }}
-      >
-        <PillButton
-          to="/chat"
-          label="Back to Chat"
-          ariaLabel="Back to Chat"
-          leftIcon="←"
-        />
-      </div>
-
-
 
       {/* Glow CSS for plan button cluster */}
       <style>
