@@ -155,16 +155,23 @@ export default function MermaidPanel({
     } as MermaidConfig;
   }, [palette, curve, nodeSpacing, rankSpacing, themeCSS]);
 
+  const resolvedHeight = useMemo(
+    () => (typeof height === "number" ? `${height}px` : height),
+    [height],
+  );
+
   return (
     <section
       style={{
-        display: visible ? "block" : "none",
+        display: visible ? "flex" : "none",
+        flexDirection: "column",
         background: "var(--color-surface)",
         border: "1px solid var(--color-border-muted)",
         borderRadius: 12,
         padding: 0,
         boxShadow: "0 1.5px 10px var(--color-shadow)",
         overflow: "hidden",
+        height: resolvedHeight,
       }}
       className={className}
       aria-busy={busy || status === "ai-thinking"}
@@ -179,6 +186,7 @@ export default function MermaidPanel({
           padding: "8px 10px",
           borderBottom: "1px solid var(--color-border-muted)",
           background: "color-mix(in srgb, var(--color-surface) 88%, var(--color-bg))",
+          flexShrink: 0,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -200,10 +208,11 @@ export default function MermaidPanel({
       <div
         style={{
           position: "relative",
-          height: typeof height === "number" ? `${height}px` : height,
           padding: 10,
           overflow: "hidden",
           display: "flex",
+          flex: 1,
+          minHeight: 0,
         }}
       >
         {/* Top-right status (still visible in MM) */}
