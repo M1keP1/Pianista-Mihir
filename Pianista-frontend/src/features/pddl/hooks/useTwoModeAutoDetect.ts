@@ -1,4 +1,7 @@
-// src/hooks/useTwoModeAutoDetect.ts
+/**
+ * Auto-selects the right editor mode (AI/Domain/Problem) by inspecting the
+ * current text while honouring recent manual overrides.
+ */
 import { useEffect, useRef, useCallback } from "react";
 
 export type TwoMode = "AI" | "D" | "P";
@@ -7,12 +10,12 @@ export type BoxKind = "domain" | "problem";
 const RE_DOMAIN = /\(\s*define\s*\(\s*domain\b/i;
 const RE_PROBLEM = /\(\s*define\s*\(\s*problem\b/i;
 
-// Strip PDDL line comments: ';' to end-of-line
+// Strip comment noise so detection isn't tripped up by inline notes.
 function stripLineComments(s: string) {
   return s.replace(/;[^\n\r]*/g, "");
 }
 
-// Balanced parens check
+// Ensure the snippet is syntactically closed before trusting the detection.
 function isBalanced(s: string) {
   let bal = 0;
   for (let i = 0; i < s.length; i++) {
@@ -25,7 +28,7 @@ function isBalanced(s: string) {
   return bal === 0;
 }
 
-// After the last balanced closing paren, is there any non-whitespace?
+// Treat stray text after the final form as natural language fallback.
 function hasTextAfterFinalForm(raw: string) {
   const t = stripLineComments(raw);
   let bal = 0;
@@ -64,7 +67,7 @@ export function useTwoModeAutoDetect(opts: {
     const raw = text || "";
     const clean = stripLineComments(raw).trimStart();
 
-    // Any stray text after a complete top-level form => AI
+    // Any stray text after a complete top-level form should keep the editor in AI mode.
     if (hasTextAfterFinalForm(raw)) {
       if (value !== "AI") onAuto("AI");
       return;

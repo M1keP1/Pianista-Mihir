@@ -1,4 +1,4 @@
-// src/components/icons/Reload.tsx
+/** Compact reload icon sized for inline controls. */
 import * as React from "react";
 
 export default function Reload({

@@ -1,4 +1,7 @@
-// src/components/Inputbox/Controls/ModeSlider.tsx
+/**
+ * Keyboard-friendly segmented control for picking processing modes without
+ * sacrificing the app's compact layout.
+ */
 import React, { useMemo } from "react";
 
 /** Legacy union (kept for back-compat default) */

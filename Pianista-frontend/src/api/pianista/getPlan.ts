@@ -1,4 +1,4 @@
-// src/api/pianista/getPlan.ts
+/** Polls Pianista for the status and results of a planning job. */
 export type PlanJobStatus = "queued" | "running" | "success" | "failure";
 export type GetPlanResponse = {
   id: string;

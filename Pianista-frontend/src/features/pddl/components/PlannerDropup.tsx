@@ -1,3 +1,4 @@
+/** Drop-up planner selector that mirrors the floating theme switcher experience. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { getPlanners, type Planner } from "@/api/pianista/getPlanners";
@@ -16,7 +17,7 @@ type Props = {
 
 const DEFAULT_STORAGE_KEY = "pddl.selectedPlanner";
 
-// Simple gear icon (monochrome, works in dark/light)
+// Use a monochrome gear so the icon stays legible across light and dark themes.
 
 export default function PlannerDropup({
   value,

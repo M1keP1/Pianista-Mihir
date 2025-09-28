@@ -1,4 +1,4 @@
-// src/components/SlashMenu.tsx
+/** Caret-anchored menu that surfaces slash shortcuts in the composer. */
 import React from "react";
 import type { Shortcut } from "@/features/chat/hooks/useShortcuts";
 
@@ -23,7 +23,7 @@ export default function SlashMenu({
       role="listbox"
       aria-label="Shortcuts"
       style={{
-        // No positioning here – parent wrapper (caret anchor) handles left/top
+        // Parent wrapper handles positioning so this component stays layout-agnostic.
         width: 260,
         maxHeight: 320,
         overflowY: "auto",
@@ -49,7 +49,7 @@ export default function SlashMenu({
             role="option"
             aria-selected={isSel}
             onMouseDown={(e) => {
-              // prevent textarea blur while clicking
+              // Prevent textarea blur so insertion logic can run against the live selection.
               e.preventDefault();
               onSelect(it);
             }}

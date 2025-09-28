@@ -1,3 +1,4 @@
+/** Mermaid preview panel that flips between raw text and rendered graph. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Textarea, { type TextAreaStatus } from "@/shared/components/Inputbox/TextArea";
 import ModeSlider from "@/shared/components/Inputbox/Controls/ModeSlider";
@@ -421,7 +422,7 @@ function sanitizeMermaidSource(src: string) {
   return s;
 }
 
-// Keep the first diagram directive; drop extras. If none, prepend a flowchart header.
+// Mermaid only supports a single directive; keep the first and inject a fallback when missing.
 function ensureOneDirective(src: string, direction: "TB" | "LR" | "BT" | "RL") {
   const lines = src.split(/\r?\n/);
   const isDirective = (l: string) =>

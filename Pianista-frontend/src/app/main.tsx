@@ -1,3 +1,7 @@
+/**
+ * Browser entrypoint that mounts React with routing and theming providers so
+ * feature modules can assume those contexts are available.
+ */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

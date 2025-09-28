@@ -1,4 +1,7 @@
-// src/hooks/useChatComposer.ts
+/**
+ * Coordinates the chat composer: saves the user's first message, fans out to
+ * the appropriate Pianista APIs, and persists any returned PDDL.
+ */
 import { useCallback, useRef, useState } from "react";
 import { detectPddlKind, splitPddl } from "@/shared/lib/pddl/utils";
 import { convertMermaid } from "@/api/pianista/convertMermaid";
@@ -70,7 +73,7 @@ export function useChatComposer() {
       return;
     }
 
-    // AI
+    // Natural language → PDDL via the Pianista generation endpoint.
     setAi("ai-thinking");
     try {
       const res = await generateDomainFromNL(payload, { attempts: 3, generate_both: true });

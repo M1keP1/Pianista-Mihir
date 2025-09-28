@@ -1,4 +1,4 @@
-// src/api/pianista/health.ts
+/** Lightweight ping used by the footer to show planner availability. */
 export type PlannerHealth = {
   status: "ok" | "down";
   message?: string;

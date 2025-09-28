@@ -1,9 +1,9 @@
-// src/components/VS_BrandButton.tsx
+/** VisionSpace logo button that routes contextually instead of always linking out. */
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@/app/providers/ThemeProvider";
 
-// Theme assets
+// Theme-specific assets keep contrast correct across palettes.
 import logoDark from "@/assets/VS_logo_white.svg";
 import logoLight from "@/assets/VS_logo_black.png";
 
@@ -22,7 +22,7 @@ const BrandLogo: React.FC<Props> = ({ size = 90, style, className }) => {
   const { pathname } = useLocation();
 
   const handleClick = (e: React.MouseEvent) => {
-    // On the PDDL editor page: go back to chat in the same tab
+    // On focused tools, send users back to chat instead of opening a new tab.
     if (pathname.startsWith("/pddl-edit") || pathname.startsWith("/minizinc")) {
       e.preventDefault();
       navigate("/chat");
@@ -33,7 +33,7 @@ const BrandLogo: React.FC<Props> = ({ size = 90, style, className }) => {
       navigate("/");
       return;
     }
-    // Everywhere else (e.g., /chat): open the website
+    // Otherwise take them to the public VisionSpace site.
     window.open("https://visionspace.com/", "_blank", "noopener,noreferrer");
   };
 

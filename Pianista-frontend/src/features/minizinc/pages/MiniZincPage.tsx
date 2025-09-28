@@ -1,4 +1,4 @@
-// src/pages/minizinc.tsx
+/** Full-page MiniZinc workflow for submitting models and retrieving solutions. */
 import React from "react";
 import BrandLogo from "@/shared/components/VS_BrandButton";
 import Textarea, { type TextAreaStatus } from "@/shared/components/Inputbox/TextArea";
@@ -58,89 +58,86 @@ export default function MiniZincPage() {
     setResponseText("");
     setJobId(null);
   };
+  const handleSend = async () => {
+    if (!canSend) return;
 
-
-const handleSend = async () => {
-  if (!canSend) return;
-
-  // enter thinking state
-  setRun("submitting");
-  setModelStatus("ai-thinking");
-  setParamsStatus("ai-thinking");
-  setStatusHint("");
-
-  // validate params first
-  let modelParams: Record<string, any> = {};
-  try {
-    modelParams = JSON.parse(paramsText);
-  } catch {
-    setRun("error");
-    setModelStatus("error");
-    setParamsStatus("error");
-    setStatusHint("Parameters must be valid JSON.");
-    return;
-  }
-
-  try {
-    // 1) enqueue solve -> get id
-    const { id } = await generateSolution(modelStr, modelParams /* solverName default inside */);
-    if (!aliveRef.current) return;
-    setJobId(id);
-
-    // 2) start polling (still ai-thinking)
-    setRun("polling");
+    // Put both editors into a "thinking" state so the user sees progress immediately.
+    setRun("submitting");
     setModelStatus("ai-thinking");
     setParamsStatus("ai-thinking");
+    setStatusHint("");
 
-    const intervalMs = 1500;
-    const maxPolls = 120; // ~3 min
-    let attempt =0; 
-while (attempt < maxPolls && aliveRef.current) {
-  const resp = await getSolution(id);
-  if (!aliveRef.current) return;
+    // Fail fast if the parameter JSON is invalid before touching the API.
+    let modelParams: Record<string, any> = {};
+    try {
+      modelParams = JSON.parse(paramsText);
+    } catch {
+      setRun("error");
+      setModelStatus("error");
+      setParamsStatus("error");
+      setStatusHint("Parameters must be valid JSON.");
+      return;
+    }
 
-  // consider both 404 and "not yet ready" message as "keep waiting"
-  const notReady =
-    resp.status === 404 ||
-    (resp.ok &&
-      resp.data &&
-      typeof resp.data === "object" &&
-      typeof resp.data.detail === "string" &&
-      /not yet ready/i.test(resp.data.detail));
+    try {
+      // Enqueue the solve so we get a job id to poll.
+      const { id } = await generateSolution(modelStr, modelParams /* solverName default inside */);
+      if (!aliveRef.current) return;
+      setJobId(id);
 
-  if (notReady) {
-    attempt++;
-    await new Promise((r) => setTimeout(r, intervalMs));
-    continue;
-  }
+      // Poll until the job resolves or we time out.
+      setRun("polling");
+      setModelStatus("ai-thinking");
+      setParamsStatus("ai-thinking");
 
-  if (!resp.ok) {
-    const reason = typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data);
-    throw new Error(`Status ${resp.status}: ${reason}`);
-  }
+      const intervalMs = 1500;
+      const maxPolls = 120; // Bail after ~3 minutes to avoid spinning forever.
+      let attempt = 0;
 
-  // success
-  setResponseText(typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data, null, 2));
-  setRun("done");
-  setPhase("result");
-  setModelStatus("verified");
-  setParamsStatus("verified");
-  setStatusHint(`Solution ready (id: ${id})`);
-  return;
-}
+      while (attempt < maxPolls && aliveRef.current) {
+        const resp = await getSolution(id);
+        if (!aliveRef.current) return;
 
+        // Treat 404 and "not yet ready" responses as transient.
+        const notReady =
+          resp.status === 404 ||
+          (resp.ok &&
+            resp.data &&
+            typeof resp.data === "object" &&
+            typeof resp.data.detail === "string" &&
+            /not yet ready/i.test(resp.data.detail));
 
-    // 4) timeout
-    throw new Error("Timed out waiting for solution.");
-  } catch (e: any) {
-    if (!aliveRef.current) return;
-    setRun("error");
-    setModelStatus("error");
-    setParamsStatus("error");
-    setStatusHint(e?.message || "Request failed.");
-  }
-};
+        if (notReady) {
+          attempt++;
+          await new Promise((r) => setTimeout(r, intervalMs));
+          continue;
+        }
 
+        if (!resp.ok) {
+          const reason = typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data);
+          throw new Error(`Status ${resp.status}: ${reason}`);
+        }
+
+        setResponseText(
+          typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data, null, 2)
+        );
+        setRun("done");
+        setPhase("result");
+        setModelStatus("verified");
+        setParamsStatus("verified");
+        setStatusHint(`Solution ready (id: ${id})`);
+        return;
+      }
+
+      throw new Error("Timed out waiting for solution.");
+    } catch (e: any) {
+      if (!aliveRef.current) return;
+      setRun("error");
+      setModelStatus("error");
+      setParamsStatus("error");
+      setStatusHint(e?.message || "Request failed.");
+    }
+  };
 
   return (
     <main
@@ -173,13 +170,13 @@ while (attempt < maxPolls && aliveRef.current) {
 
       {phase === "compose" ? (
         <>
-          {/* Two editors — close together */}
+          {/* Editor view keeps model and params adjacent for quicker cross-referencing. */}
           <div
             style={{
               width: "100%",
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: 12, // closer boxes
+              gap: 12, // Keep editors visually linked without wasting space.
               alignItems: "stretch",
             }}
           >
@@ -204,7 +201,7 @@ while (attempt < maxPolls && aliveRef.current) {
             />
           </div>
 
-          {/* Button row — below & right-aligned */}
+          {/* Action row sticks to the bottom-right so the primary CTA mirrors reading order. */}
           <div
             style={{
               width: "100%",
@@ -223,10 +220,8 @@ while (attempt < maxPolls && aliveRef.current) {
           </div>
         </>
       ) : (
-
-
-          // RESULT — single read-only textarea
-          <div style={{ width: "100%" }}>
+        /* Result view: show the solver response but keep editing disabled. */
+        <div style={{ width: "100%" }}>
             <label style={{ display: "block", textAlign: "left", marginBottom: 6 }}>
               Solution {jobId ? `(id: ${jobId})` : ""}
             </label>

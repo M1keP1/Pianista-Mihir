@@ -1,4 +1,4 @@
-// src/lib/plannerAdapters.ts
+/** Normalises raw planner output into a shape the UI components can consume. */
 
 export type TimeUnit = "hour" | "minute" | "second" | "day";
 

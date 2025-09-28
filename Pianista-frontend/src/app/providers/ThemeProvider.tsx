@@ -1,3 +1,7 @@
+/**
+ * Central theme context that mirrors the active theme to the `<html>` element
+ * and persists the choice so every route renders with the expected palette.
+ */
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type ThemeName = "classic" | "light";
@@ -9,6 +13,7 @@ type Flags = {
   cloudIntensity: number;
 };
 
+// Hook consumers read these flags to toggle ambient effects per theme.
 const FLAG_PROFILES: Record<ThemeName, Flags> = {
   classic: { interactive: false, showStars: false, showClouds: false, cloudIntensity: 0 },
   light:   { interactive: false, showStars: false, showClouds: false, cloudIntensity: 0 },
@@ -24,6 +29,8 @@ const ThemeContext = createContext<Ctx | null>(null);
 
 export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [name, setName] = useState<ThemeName>(() => {
+    // Rehydrate from storage before the first paint to avoid a flash of the
+    // fallback theme.
     const saved = localStorage.getItem("themeName") as ThemeName | null;
     if (saved === "classic" || saved === "light") return saved;
 
@@ -32,6 +39,7 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   });
 
   useEffect(() => {
+    // Drive CSS variables via a data attribute on the root element.
     document.documentElement.setAttribute("data-theme", name);
   }, [name]);
 

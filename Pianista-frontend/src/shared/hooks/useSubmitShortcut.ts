@@ -1,4 +1,7 @@
-// src/components/input/hooks/useSubmitShortcut.ts
+/**
+ * Normalizes textarea submit shortcuts so forms can opt into Enter vs Cmd+Enter
+ * behavior without duplicating composition/IME guards.
+ */
 import { useCallback } from "react";
 
 export type SubmitShortcut = "enter" | "mod+enter" | "none";

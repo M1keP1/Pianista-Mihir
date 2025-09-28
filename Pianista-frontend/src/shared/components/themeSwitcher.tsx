@@ -1,4 +1,4 @@
-// ThemeSwitcherFab.tsx
+/** Floating theme switcher FAB with an accessible menu of presets. */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme, type ThemeName } from "@/app/providers/ThemeProvider";
 
@@ -188,7 +188,7 @@ const ThemeSwitcherFab: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null!);
   const btnRef = useRef<HTMLButtonElement>(null) as React.RefObject<HTMLButtonElement>;
 
-  // Close on outside click / ESC
+  // Mirror native menus: close when the user clicks outside or presses Escape.
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
@@ -205,7 +205,7 @@ const ThemeSwitcherFab: React.FC = () => {
   }, [open]);
 
   const toggle = () => setOpen((v) => !v);
-  const selectTheme = (t: ThemeName) => setTheme(t, true); // keep menu open after choose
+  const selectTheme = (t: ThemeName) => setTheme(t, true); // Persist choice but leave menu open so users can compare themes.
 
   // Memoize to avoid re-renders for static UI
   const fab = useMemo(() => <FabButton open={open} onToggle={toggle} btnRef={btnRef} />, [open]);
