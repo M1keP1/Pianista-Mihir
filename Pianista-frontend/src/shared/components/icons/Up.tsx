@@ -10,7 +10,7 @@ export default function PlannerIcon(props: React.SVGProps<SVGSVGElement>) {
       {...props}
     >
       <path
-        d="M8 13V4M8 4L5 7M8 4l3 3"
+        d="M5 13V3h4a3 3 0 0 1 0 6H5"
         stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"

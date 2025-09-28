@@ -210,7 +210,7 @@ export default function PddlEditPage() {
         style={{
           position: "fixed",
           left: "clamp(16px, 4vw, 48px)",
-          bottom: "calc(env(safe-area-inset-bottom) + 16px)",
+          bottom: "calc(env(safe-area-inset-bottom) + 55px)",
           zIndex: 10,
         }}
       >
