@@ -5,6 +5,8 @@ This repo is my submission for **Visionnaires – Make Pianista Sing**.
 The goal here is to build a frontend that makes it approachable: natural language in, validated PDDL and plans out, with clear visualizations to guide the process.
 
 ---
+# Demo Video (To be uploaded)
+---
 
 ## ✨ Features Built So Far
 
@@ -37,42 +39,12 @@ The goal here is to build a frontend that makes it approachable: natural languag
 
 ---
 
-## 🏗️ Tech Stack
-
-* React 18 + TypeScript (Vite)
-* CSS variables + theme system (light/classic)
-* Pianista backend APIs
-* React hooks + local store (`pddlStore`)
-* Async polling, AbortControllers, debounced validation
-
----
-
-## 🚦 Status
-
-* Core UI implemented (Chat → Editor → Plan) with persistence and cross-page routing.
-* Pianista APIs integrated (domain, problem, plan) and planner selection fetches available backends.
-* MermaidPanel and GanttLite ship inside the editor and plan experiences.
-* PDDL store fully functional for persistence.
-* **Solver endpoints are not included** → they’re excluded for now because they are not yet functional.
-* App not yet responsive across all screen sizes/browsers.
-* Code works but has repetitions → refactoring planned.
-
----
-
 ## 🐞 Known Issues / TODOs
 
-* Layout not fully responsive → issues on smaller screens or some browsers.
-* Solver endpoints excluded until functional.
-* Code repetition in places → refactor needed.
-
----
-
-## 🔜 Week 2 Plan
-
-* Integrate solver endpoints and expose solver workflows once the backend is ready.
-* Make the UI fully responsive across browsers and devices.
-* Improve error handling and workflow feedback.
-* Reduce duplication across shared components and hooks.
+* Layout may not be fully responsive on smaller screens or some browsers.
+* Refinements needed in gantt chart component
+* Previous Chats not accesible through UI
+* Solvers backend returns 500 errors
 
 ---
 
@@ -162,7 +134,5 @@ This repository is provided **exclusively** for the *Visionnaires – Make Piani
 ---
 
 <p align="center">
-  <img alt="ad astra" src="https://img.shields.io/badge/ad%20astra-build%20%7C%20iterate%20%7C%20orbit-4f46e5?style=for-the-badge">
-  <br/>
   <sub>Visionnaires – Make Pianista Sing • © 2025 VisionSpace & Mihir Patel</sub>
 </p>
