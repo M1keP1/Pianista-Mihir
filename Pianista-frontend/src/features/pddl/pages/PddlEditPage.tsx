@@ -132,6 +132,12 @@ export default function PddlEditPage() {
       }}
     >
       <ActionBar>
+        <PillButton
+          to="/chat"
+          label="Back to Chat"
+          ariaLabel="Back to Chat"
+          leftIcon={<span aria-hidden>←</span>}
+        />
         {/* View toggle button */}
         {isMermaidOpen ? (
           <PillButton
@@ -205,24 +211,6 @@ export default function PddlEditPage() {
         </div>
 
       </ActionBar>
-
-      <div
-        style={{
-          position: "fixed",
-          left: "clamp(16px, 4vw, 48px)",
-          bottom: "calc(env(safe-area-inset-bottom) + 55px)",
-          zIndex: 10,
-        }}
-      >
-        <PillButton
-          to="/chat"
-          label="Back to Chat"
-          ariaLabel="Back to Chat"
-          leftIcon="←"
-        />
-      </div>
-
-
 
       {/* Glow CSS for plan button cluster */}
       <style>
