@@ -66,15 +66,16 @@ export default function PddlEditPage() {
   const MERMAID_FRACTION = 0.62;
 
   /* ------------------------- Auto-detect modes ---------------------------- */
-  useTwoModeAutoDetect({
+
+  const { setManual: domainSetManual } = useTwoModeAutoDetect({
     kind: "domain", text: domain, value: domainMode as TwoMode,
     onAuto: (m) => { if (domainAtEnd) setDomainMode((m === "P" ? "AI" : m) as DomainEditMode); },
-    manualPriorityMs: 1200,
+    manualPriorityMs: 20000, // give manual click priority for 20s
   });
-  useTwoModeAutoDetect({
+  const { setManual: problemSetManual } = useTwoModeAutoDetect({
     kind: "problem", text: problem, value: problemMode as TwoMode,
     onAuto: (m) => { if (problemAtEnd) setProblemMode((m === "D" ? "AI" : m) as ProblemEditMode); },
-    manualPriorityMs: 1200,
+    manualPriorityMs: 20000,
   });
 
   return (
@@ -332,7 +333,7 @@ export default function PddlEditPage() {
                     accentColor="var(--color-accent)"
                     modeSliderProps={{
                       value: domainMode,
-                      onChange: setDomainMode,
+                      onChange: (k) => { domainSetManual(k); setDomainMode(k); },
                       modes: [
                         { key: "AI", short: "AI", full: "Generate / Validate with AI" },
                         { key: "D", short: "D", full: "Write PDDL Domain" },
@@ -377,7 +378,7 @@ export default function PddlEditPage() {
                     accentColor="color-mix(in srgb, var(--color-accent) 70%, #16a34a)"
                     modeSliderProps={{
                       value: problemMode,
-                      onChange: setProblemMode,
+                      onChange: (k) => { problemSetManual(k); setProblemMode(k); },
                       modes: [
                         { key: "AI", short: "AI", full: "Generate / Validate with AI" },
                         { key: "P", short: "P", full: "Write PDDL Problem" },
