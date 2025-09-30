@@ -362,7 +362,7 @@ export default function PddlEditPage() {
                       spellCheck: domainMode === "AI",
                       onKeyDown: () => updateDomainCaret(),
                     }}
-                    hint="Hint: Type to enhance/correct.."
+                    hint="Hint: Append prompt at the end to enhance/correct and press Enter to send.."
                   />
                 </div>
               </div>
@@ -411,7 +411,7 @@ export default function PddlEditPage() {
                       spellCheck: problemMode === "AI",
                       onKeyDown: () => updateProblemCaret(),
                     }}
-                    hint="Hint: PDDL Syntax gets autocorrected with AI..."
+                    hint="Hint: PDDL Syntax gets autocorrected with AI ( Press Enter in AI mode or just click generate plan to autofix )"
                   />
                 </div>
               </div>

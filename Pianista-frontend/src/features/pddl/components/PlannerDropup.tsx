@@ -141,6 +141,7 @@ export default function PlannerDropup({
             minWidth: 220,
             maxHeight: 300,
             overflowY: "auto",
+            overflow: "visible",
             color: "var(--color-text)",
             padding: 8,
             zIndex: 9999,
