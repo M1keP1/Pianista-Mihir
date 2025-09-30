@@ -114,10 +114,6 @@ All rights reserved.
 
 This repository is provided **exclusively** for the *Visionnaires – Make Pianista Sing* contest.
 
-* Redistribution, commercial use, or integration into other projects is **not permitted** without written consent.
-* No permission is granted for automated crawling, scraping, or use in AI training datasets.
-* If this repository is public (e.g. on GitHub), it is for contest visibility only – **not for reuse**.
-
 ---
 
 <p align="center">
